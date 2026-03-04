@@ -339,6 +339,19 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 keyboardResizeButton.setOnClickListener {
                     windowManager.attachWindow(org.fcitx.fcitx5.android.input.keyboard.KeyboardResizeWindow())
                 }
+                oneHandedButton.setOnClickListener {
+                    // 切换单手模式
+                    val prefs = AppPrefs.getInstance().internal
+                    val currentMode = prefs.oneHandedMode.getValue()
+                    val inputView = service.activeInputView
+                    if (currentMode == "off") {
+                        // 恢复到上次记忆的方向
+                        val lastSide = prefs.oneHandedLastSide.getValue()
+                        inputView?.setOneHandedMode(lastSide)
+                    } else {
+                        inputView?.setOneHandedMode("off")
+                    }
+                }
                 moreButton.setOnClickListener {
                     windowManager.attachWindow(StatusAreaWindow())
                 }
@@ -408,6 +421,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             "clipboard" to idleUi.buttonsUi.clipboardButton,
             "quickPhrase" to idleUi.buttonsUi.quickPhraseButton,
             "keyboardResize" to idleUi.buttonsUi.keyboardResizeButton,
+            "oneHanded" to idleUi.buttonsUi.oneHandedButton,
             "more" to idleUi.buttonsUi.moreButton,
             "voice" to idleUi.buttonsUi.voiceButton
         )

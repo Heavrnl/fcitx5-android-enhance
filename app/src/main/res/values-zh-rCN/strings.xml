@@ -382,4 +382,8 @@
     <string name="dashscope_region_cn">中国内地</string>
     <string name="dashscope_region_intl">国际</string>
     <string name="keyboard_resize">键盘调节</string>
+    <string name="one_handed_mode">单手模式</string>
+    <string name="one_handed_left">左手模式</string>
+    <string name="one_handed_right">右手模式</string>
+    <string name="full_keyboard">全键盘</string>
 </resources>

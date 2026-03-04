@@ -39,7 +39,11 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val quickPhraseSortBy = string("quickphrase_sort_by", "lastUsed") // "name", "id", "lastModified", "lastUsed"
         val quickPhraseSortDesc = bool("quickphrase_sort_desc", true)
         val buttonsBarOrder = string("buttons_bar_order", "undo,redo,cursorMove,clipboard,quickPhrase,voice,more")
-        val buttonsBarHidden = string("buttons_bar_hidden", "keyboardResize")
+        val buttonsBarHidden = string("buttons_bar_hidden", "keyboardResize,oneHanded")
+        // 单手模式：off / left / right
+        val oneHandedMode = string("one_handed_mode", "off")
+        // 记忆上次选择的单手方向
+        val oneHandedLastSide = string("one_handed_last_side", "right")
     }
 
     inner class Advanced : ManagedPreferenceCategory(R.string.advanced, sharedPreferences) {
@@ -136,7 +140,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val focusChangeResetKeyboard =
             switch(R.string.reset_keyboard_on_focus_change, "reset_keyboard_on_focus_change", true)
         val expandToolbarByDefault =
-            switch(R.string.expand_toolbar_by_default, "expand_toolbar_by_default", false)
+            switch(R.string.expand_toolbar_by_default, "expand_toolbar_by_default", true)
         val inlineSuggestions = switch(R.string.inline_suggestions, "inline_suggestions", true)
         val toolbarNumRowOnPassword =
             switch(R.string.toolbar_num_row_on_password, "toolbar_num_row_on_password", true)

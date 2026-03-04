@@ -318,4 +318,8 @@
     <string name="emoji_skin_tone_type_6">🏿 深膚色 (Type-6)</string>
     <string name="hide_unsupported_emojis">隱藏不支援的表情</string>
     <string name="keyboard_resize">鍵盤調節</string>
+    <string name="one_handed_mode">單手模式</string>
+    <string name="one_handed_left">左手模式</string>
+    <string name="one_handed_right">右手模式</string>
+    <string name="full_keyboard">全鍵盤</string>
 </resources>

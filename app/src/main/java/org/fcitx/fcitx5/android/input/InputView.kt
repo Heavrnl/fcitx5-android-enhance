@@ -7,12 +7,17 @@ package org.fcitx.fcitx5.android.input
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Build
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import androidx.core.view.updateLayoutParams
@@ -81,16 +86,90 @@ class InputView(
     private val placeholderOnClickListener = OnClickListener { }
 
     // use clickable view as padding, so MotionEvent can be split to padding view and keyboard view
-    private val leftPaddingSpace = view(::View) {
+    private val leftPaddingSpace = FrameLayout(context).apply {
         setOnClickListener(placeholderOnClickListener)
     }
-    private val rightPaddingSpace = view(::View) {
+    private val rightPaddingSpace = FrameLayout(context).apply {
         setOnClickListener(placeholderOnClickListener)
     }
     private val bottomPaddingSpace = view(::View) {
         // height as keyboardBottomPadding
         // bottomMargin as WindowInsets (Navigation Bar) offset
         setOnClickListener(placeholderOnClickListener)
+    }
+
+    // 单手模式相关
+    private val internalPrefs = AppPrefs.getInstance().internal
+    private val oneHandedModePref = internalPrefs.oneHandedMode
+    private val oneHandedLastSidePref = internalPrefs.oneHandedLastSide
+
+    // 单手模式侧边面板
+    private val oneHandedPanel = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        visibility = View.GONE
+    }
+
+    // 创建侧边面板按钮
+    private fun createOneHandedPanelButtons() {
+        oneHandedPanel.removeAllViews()
+        val accentColor = theme.accentKeyBackgroundColor
+        val btnSize = dp(44)
+        val iconPadding = dp(10)
+
+        val currentMode = oneHandedModePref.getValue()
+
+        // 切换到另一手按钮
+        val switchBtn = ImageView(context).apply {
+            if (currentMode == "right") {
+                setImageResource(R.drawable.ic_onehand_left_24)
+                contentDescription = context.getString(R.string.one_handed_left)
+            } else {
+                setImageResource(R.drawable.ic_onehand_right_24)
+                contentDescription = context.getString(R.string.one_handed_right)
+            }
+            setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
+            drawable.setTint(accentColor)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            setOnClickListener {
+                // 左 ↔ 右 切换
+                val newMode = if (currentMode == "right") "left" else "right"
+                setOneHandedMode(newMode)
+            }
+        }
+
+        // 全键盘按钮
+        val fullBtn = ImageView(context).apply {
+            setImageResource(R.drawable.ic_baseline_keyboard_24)
+            contentDescription = context.getString(R.string.full_keyboard)
+            setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
+            drawable.setTint(accentColor)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            setOnClickListener {
+                setOneHandedMode("off")
+            }
+        }
+
+        val btnParams = LinearLayout.LayoutParams(btnSize, btnSize).apply {
+            setMargins(0, dp(8), 0, dp(8))
+        }
+        oneHandedPanel.addView(switchBtn, btnParams)
+        oneHandedPanel.addView(fullBtn, btnParams)
+    }
+
+    // 设置单手模式
+    fun setOneHandedMode(mode: String) {
+        if (mode != "off") {
+            oneHandedLastSidePref.setValue(mode)
+        }
+        oneHandedModePref.setValue(mode)
+        updateKeyboardSize()
     }
 
     private val scope = DynamicScope()
@@ -311,8 +390,49 @@ class InputView(
         bottomPaddingSpace.updateLayoutParams {
             height = keyboardBottomPaddingPx
         }
-        val leftPadding = keyboardLeftPaddingPx
-        val rightPadding = keyboardRightPaddingPx
+
+        // 计算有效的左右 padding（考虑单手模式）
+        val oneHandedMode = oneHandedModePref.getValue()
+        val displayWidth = resources.displayMetrics.widthPixels
+        val oneHandedPadding = (displayWidth * 0.25f).toInt() // 25% 宽度作为留白，键盘保持 75%
+
+        var leftPadding = keyboardLeftPaddingPx
+        var rightPadding = keyboardRightPaddingPx
+
+        // 单手模式覆盖 side padding
+        when (oneHandedMode) {
+            "right" -> {
+                // 右手模式：键盘靠右，左侧留白
+                leftPadding = oneHandedPadding
+                rightPadding = 0
+            }
+            "left" -> {
+                // 左手模式：键盘靠左，右侧留白
+                leftPadding = 0
+                rightPadding = oneHandedPadding
+            }
+        }
+
+        // 管理单手面板显示
+        if (oneHandedMode != "off") {
+            createOneHandedPanelButtons()
+            // 将面板放到正确的 paddingSpace 中
+            (oneHandedPanel.parent as? ViewGroup)?.removeView(oneHandedPanel)
+            oneHandedPanel.visibility = View.VISIBLE
+            if (oneHandedMode == "right") {
+                leftPaddingSpace.addView(oneHandedPanel, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                ))
+            } else {
+                rightPaddingSpace.addView(oneHandedPanel, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+                ))
+            }
+        } else {
+            oneHandedPanel.visibility = View.GONE
+            (oneHandedPanel.parent as? ViewGroup)?.removeView(oneHandedPanel)
+        }
+
         if (leftPadding == 0 && rightPadding == 0) {
             // 两侧都无 padding，隐藏 space view
             leftPaddingSpace.visibility = GONE
@@ -358,6 +478,7 @@ class InputView(
                 }
             }
         }
+        // 单手模式下 kawaiiBar 和 preedit 也跟随缩进
         preedit.ui.root.setPadding(leftPadding, 0, rightPadding, 0)
         kawaiiBar.view.setPadding(leftPadding, 0, rightPadding, 0)
     }

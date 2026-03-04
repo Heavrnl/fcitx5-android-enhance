@@ -9,7 +9,6 @@ import android.content.SharedPreferences
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.core.content.edit
-import org.fcitx.fcitx5.android.BuildConfig
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceCategory
@@ -34,7 +33,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         return pref
     }
 
-    val keyBorder = switch(R.string.key_border, "key_border", false)
+    val keyBorder = switch(R.string.key_border, "key_border", true)
 
     val keyBorderStroke = switch(
         R.string.key_border_stroke, "key_border_stroke", false,
@@ -143,7 +142,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
     val lightModeTheme = themePreference(
         R.string.light_mode_theme,
         "light_mode_theme",
-        if (BuildConfig.DEBUG) ThemePreset.MaterialLight else ThemePreset.PixelLight,
+        ThemeMonet.getLight(),
         enableUiOn = {
             followSystemDayNightTheme.getValue()
         })
@@ -151,7 +150,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
     val darkModeTheme = themePreference(
         R.string.dark_mode_theme,
         "dark_mode_theme",
-        if (BuildConfig.DEBUG) ThemePreset.MaterialDark else ThemePreset.PixelDark,
+        ThemeMonet.getDark(),
         enableUiOn = {
             followSystemDayNightTheme.getValue()
         })

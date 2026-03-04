@@ -35,7 +35,7 @@ object ThemeManager {
         ThemePreset.AMOLEDBlack,
     )
 
-    val DefaultTheme = ThemePreset.PixelDark
+    val DefaultTheme = ThemePreset.MaterialDark
 
     private var monetThemes = listOf(ThemeMonet.getLight(), ThemeMonet.getDark())
 

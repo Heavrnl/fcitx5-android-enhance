@@ -382,4 +382,8 @@
     <string name="dashscope_region_cn">Mainland China</string>
     <string name="dashscope_region_intl">International</string>
     <string name="keyboard_resize">Resize Keyboard</string>
+    <string name="one_handed_mode">One-handed mode</string>
+    <string name="one_handed_left">Left hand</string>
+    <string name="one_handed_right">Right hand</string>
+    <string name="full_keyboard">Full keyboard</string>
 </resources>

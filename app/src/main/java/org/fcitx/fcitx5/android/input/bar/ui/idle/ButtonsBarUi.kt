@@ -39,7 +39,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
 
     val flexbox = view(::FlexboxLayout) {
         alignItems = AlignItems.CENTER
-        justifyContent = JustifyContent.FLEX_START // 靠左对齐，并保持原生紧凑，避免元素少时居中产生拉伸变形感知
+        justifyContent = JustifyContent.SPACE_EVENLY // 均匀分布，按钮增减时自动调整间距
     }
 
     override val root = android.widget.HorizontalScrollView(ctx).apply {
@@ -96,6 +96,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.keyboard_resize)
     }
 
+    val oneHandedButton = toolButton(R.drawable.ic_baseline_smartphone_24, "oneHanded").apply {
+        contentDescription = ctx.getString(R.string.one_handed_mode)
+    }
+
     private val allButtons by lazy {
         mapOf(
             "undo" to undoButton,
@@ -104,6 +108,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             "clipboard" to clipboardButton,
             "quickPhrase" to quickPhraseButton,
             "keyboardResize" to keyboardResizeButton,
+            "oneHanded" to oneHandedButton,
             "more" to moreButton,
             "voice" to voiceButton
         )
@@ -132,6 +137,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                 val size = ctx.dp(40)
                 flexbox.addView(button, FlexboxLayout.LayoutParams(size, size).apply {
                     flexShrink = 0f
+                    flexGrow = 1f // 自适应均分空间
                 })
             }
         }
@@ -148,6 +154,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                     }
                     flexbox.addView(button, FlexboxLayout.LayoutParams(size, size).apply {
                         flexShrink = 0f
+                        flexGrow = 1f
                     })
                 }
             }

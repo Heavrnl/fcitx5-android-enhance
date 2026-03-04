@@ -21,7 +21,8 @@ sealed class StatusAreaEntry(
             ReloadConfig,
             Keyboard,
             ThemeList,
-            KeyboardResize
+            KeyboardResize,
+            OneHanded
         }
     }
 

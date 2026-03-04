@@ -1,0 +1,53 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48"
+    android:tint="?attr/colorControlNormal">
+  <!-- 手 + 手机轮廓 -->
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M30.809,29.465c-2.362,-0.033 -3.203,-1.03 -5.434,-4.005s-4.618,-2.836 -5.434,-1.941c-0.68,0.744 3.331,9.477 4.528,10.868a19.5,19.5 0,0 0,1.844 1.94s-0.043,4.165 -0.172,7.173"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M37.245,42.764a75,75 0,0 1,-1.132 -7.827c0.065,-0.324 0.025,-4.658 -0.004,-5.693s-1.128,-9.768 -1.872,-11.418s-3.428,-3.817 -3.428,-3.817"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M24.1,33.87H13.062a2.307,2.307 0,0 1,-2.307 -2.308V6.807A2.307,2.307 0,0 1,13.062 4.5h15.44a2.307,2.307 0,0 1,2.307 2.307v22.658"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M10.755,8.672h20.054"/>
+  <path
+      android:fillColor="#00000000"
+      android:strokeColor="@android:color/white"
+      android:strokeWidth="2"
+      android:strokeLineCap="round"
+      android:strokeLineJoin="round"
+      android:pathData="M10.755,29.697h11.187"/>
+  <!-- 键盘上的点 -->
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M26.47,19.198m-0.75,0a0.75,0.75 0,1 1,1.5 0a0.75,0.75 0,1 1,-1.5 0"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M22.832,19.198m-0.75,0a0.75,0.75 0,1 1,1.5 0a0.75,0.75 0,1 1,-1.5 0"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M19.195,19.198m-0.75,0a0.75,0.75 0,1 1,1.5 0a0.75,0.75 0,1 1,-1.5 0"/>
+</vector>

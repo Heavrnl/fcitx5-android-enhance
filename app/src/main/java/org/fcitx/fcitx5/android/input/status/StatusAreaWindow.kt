@@ -31,6 +31,7 @@ import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.Keyboa
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ReloadConfig
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ThemeList
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.KeyboardResize
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.OneHanded
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.AppUtil
@@ -82,6 +83,11 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                 context.getString(R.string.keyboard_resize),
                 R.drawable.ic_baseline_zoom_out_map_24,
                 KeyboardResize
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.one_handed_mode),
+                R.drawable.ic_baseline_smartphone_24,
+                OneHanded
             )
         )
     }
@@ -159,6 +165,18 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                         Keyboard -> AppUtil.launchMainToKeyboard(context)
                         ThemeList -> AppUtil.launchMainToThemeList(context)
                         KeyboardResize -> windowManager.attachWindow(org.fcitx.fcitx5.android.input.keyboard.KeyboardResizeWindow())
+                        OneHanded -> {
+                            // 切换单手模式
+                            val prefs = AppPrefs.getInstance().internal
+                            val currentMode = prefs.oneHandedMode.getValue()
+                            val inputView = service.activeInputView
+                            if (currentMode == "off") {
+                                val lastSide = prefs.oneHandedLastSide.getValue()
+                                inputView?.setOneHandedMode(lastSide)
+                            } else {
+                                inputView?.setOneHandedMode("off")
+                            }
+                        }
                     }
                 }
             }
