@@ -1,0 +1,164 @@
+** GLOSSARY **
+ator allocatorの略
+     allocatorは一般にはメモリの管理を行う機構のことを指し、
+     メモリの確保だけではなく解放も管理する。
+
+candidate 候補
+
+candsort 候補の評価並び換えを行うモジュール
+
+candswap 候補の優先順位の交換を行うモジュール
+
+cc(conjugate class) どの活用か (何行何段とか)
+
+commit(コミット) 入力の確定
+
+compose:
+	品詞を割当てられた文節に対して候補を割当てる
+
+conjugate:
+	活用(infectionの方が適切かも)
+
+context:
+	入力コンテキスト 変換する文字列一つに対応する
+
+corpus:
+	例文
+
+cos(class of speech):
+	副品詞
+
+ct(conjugate type):
+	活用形 (未然、連用、、)
+
+declinable:
+	用言 <-> 体言 indeclinable
+
+depword:
+	付属語
+
+dic_session_t:
+	辞書のセッション
+
+dtor:
+	destructorの略
+
+ent:
+	entry
+
+feature:
+	素性、0,1の値を取る関数
+
+feature_set:
+	素性の集合、二値のベクトルもしくは素性番号のリストとして扱える
+
+file_dic:
+	ファイル辞書
+
+gang look up:
+	複数の検索キーに対する検索を一度に行う
+
+lattice:
+	束、集合論の概念
+
+metaword:
+	文節を複数まとめたもの
+
+mmap:
+	OSの機能
+	ファイルの内容をプロセスのアドレス空間に見えるようにする
+
+nr:
+	NumbeR。nr_?? でなにかの数を意味する
+
+ochaire(お茶入れ):
+	文節の組をそのまま学習するための機構
+
+personality:
+	ユーザを識別するための文字列
+
+pos(part of speech):
+	品詞
+
+quit:
+	モジュール自体の終了(関数の命名に使ってる) -> release
+
+ratio:
+	RATIO_BASEを分母とする比率
+
+release :
+	モジュールのデータ(構造)の解放(関数の命名に使ってる) -> quit
+
+scos(sub cos):
+	副副品詞
+
+seg:
+	-> segment
+
+seq_ent_t:
+	辞書上の見出語
+
+segment:
+	文節(国文法の文節では無い)
+
+segstruct:
+	文節を構成する単語に対しルール基づいてに品詞を割当てる
+
+splitter:
+	ひらがな列を文節に分割する
+
+trie:
+	n-way tree 一般的には256などを用いる
+        文字列やIPアドレス等の高速検索に用いられる
+
+word_list:
+	文節を構成する単位、自立語を一つ含む
+
+wordseq:
+	自立語に対して付属語を付けてゆく
+
+wordsplit:
+	文節の境界を検出する
+
+wtype:
+	単語の型情報 -> doc/POSを見よう
+
+xchar:
+	文字(EUC-JPのコード)
+
+xstr:
+	文字列(長さとxcharへのポインタを持つ)
+
+ビタビアルゴリズム:
+	viterbi algorithm、動的計画法の一種
+
+
+** xchar **
+anthyではxcharという独自の文字型を作って文字を扱うようにしている。
+xcharは現時点では32bitでUCS4もしくはASCIIのコードが入っている。
+
+
+** context **
+Anthyは同時に複数の入力を行うことをサポートするために、
+複数の各入力をコンテキストというオブジェクトに対応させて、
+ユーザによる操作をそれぞれのコンテキストへの操作という
+形で行うようにしています。
+
+** seq_ent **
+文字列のハンドルです。
+personalityごとに辞書は用意されるので、異なるpersonalityにおいては
+同じ文字列でも異なる値を取ります。
+
+** xstr **
+typedef struct xstr_{
+  xchar *str;
+  int len;
+}xstr;
+普通の文字列のように\0終端にすると部分を取り出すなどの操作が
+複雑になるので、開始点へのポインタと文字数を持つ構造体によって
+文字列を表現している。
+
+** personality **
+学習の内容などを識別するための名前
+各コンテキストは一つのpersonalityを参照する。
+特に指定しなければdefault personality ""(空文字)が使用される。

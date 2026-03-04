@@ -1,0 +1,105 @@
+This document is written in Japanese.
+
+EmacsからAnthyの各機能を用いる方法を記述したドキュメントです
+
+
+(1)ソフトウェアの構成
+(2)使いはじめるために
+(3)日本語入力の方法
+(4)設定項目
+(5)Quick Guide
+(6)技術的な詳細
+
+
+
+
+(1)ソフトウェアの構成
+  Anthyのemacs対応は日本語入力部と個人辞書の管理の
+  二つの部分で構成されています。
+  どちらの部分もelispで記述されたフロントエンドから
+  コマンドを起動して、パイプで通信することによって
+  動作します。これによってクリーンな実装と一定の
+  セキュリティとプライバシー保護を実現しています。
+
+
+
+(2)使いはじめるために
+  *まずAnthyを通常にインストールしてください。
+  *次にemacs lispをロードする設定をします。
+   一般的には ~/.emacs に
+   (load-library "anthy")
+   という行を追加します
+  *そして使用するinput-methodとしてAnthyを選択します
+   これも一般的には ~/.emacs に
+   (setq default-input-method 'japanese-anthy)
+   という行を追加することによって行います
+  *emacsのインストールされている場所とanthyの
+   インストールされている場所が異なる場合には
+   ~/.emacs に下記の行を追加してください
+   (setq load-path
+    (cons "/usr/local/share/emacs/site-lisp/anthy/" load-path))
+   emacsをインストールした先のprefixとanthyをインストールした先のprefixが
+   違う場合は
+   ~/.emacs に下記の行を追加してください
+   (load-file "/usr/local/share/emacs/site-lisp/anthy/leim-list.el")
+
+
+(3)日本語入力の方法
+ キーバインド
+  入力モードへの移行
+   +C-\ anthy-modeのon-off
+  入力モード
+   +/ 英数モードとの一時的なトグル
+    `/'そのものを入力したい場合は`/'を2回打ってください
+   +l 英数モードへの変更(プリエディットの無い状態で有効)
+   +C-j 日本語モードへの変更
+   +q ひらがなカタカナのトグル(プリエディットの無い状態で有効)
+  編集モード
+   +C-i 文節の短縮
+   +C-o 文節の拡大
+   +C-f 右文節
+   +C-b 左文節
+   +C-n, space 次候補
+   +C-p 前候補
+   +C-j 確定
+   +return 確定
+
+
+
+(4)設定項目
+  *~/.emacsに記述することによって設定が可能です．
+   +(anthy-change-hiragana-map key str)
+      ひらがなのmapを変更する
+     例
+      (anthy-change-hiragana-map "," "、")
+    「.,」を「．，」に割り当てる場合は
+    (anthy-load-hiragana-map anthy-alt-char-map)
+   +(anthy-set-break-into-roman 't)
+     ローマ字入力中にバックスペースを押すと文字単位ではなくローマ字を消す．
+     たとえば「か」でバックスペースを押すと「k」が残る
+   +(anthy-kana-map-mode)
+    かなキーボード打ちモードに変更する
+
+(6)Quick Guide
+ ~/.emacsに追加する内容の説明です
+ 日本語をデフォルトにする
+  (set-language-environment "Japanese")
+ anthy.el をロードできるようにする
+  (push "/usr/local/share/emacs/site-lisp/anthy/" load-path)
+ anthy.elをロードする
+  (load-library "anthy")
+ japanese-anthy をデフォルトのinput-methodにする
+  (setq default-input-method 'japanese-anthy)
+
+
+
+(6)技術的な詳細
+  *src-util/anthy.elがemacs用のanthyのフロントエンドです。
+  *src-util/anthy-dic.elがemacs用のanthyのフロントエンドです。
+  *emacsのsite-lispのディレクトリにインストールされます。
+  *emacs20.7などで動作します。
+  *leimのAPIにも準拠しています。
+  *anthy.el は同梱されているanthy-agentというコマンドを起動して
+   パイプで通信をすることによって変換の動作を行います。
+  *anthy-dic.el は同梱されているanthy-dic-toolというコマンドを
+   起動してパイプで通信を行うことによって、個人辞書にアクセスします。

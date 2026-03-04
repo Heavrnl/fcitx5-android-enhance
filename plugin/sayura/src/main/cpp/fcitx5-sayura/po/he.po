@@ -1,0 +1,38 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx5-sayura package.
+#
+# Translators:
+# 63f334ffc0709ba0fc2361b80bf3c0f0_00ffd1e <ab96c93ca0ac55ba7fa06385427e60dd_878890>, 2020
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fcitx5-sayura\n"
+"Report-Msgid-Bugs-To: fcitx-dev@googlegroups.com\n"
+"POT-Creation-Date: 2024-03-05 20:24+0000\n"
+"PO-Revision-Date: 2020-04-02 17:32+0000\n"
+"Last-Translator: 63f334ffc0709ba0fc2361b80bf3c0f0_00ffd1e "
+"<ab96c93ca0ac55ba7fa06385427e60dd_878890>, 2020\n"
+"Language-Team: Hebrew (https://app.transifex.com/fcitx/teams/12005/he/)\n"
+"Language: he\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n == 1 && n % 1 == 0) ? 0 : (n == 2 && n % "
+"1 == 0) ? 1: 2;\n"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:7
+msgid "Sayura"
+msgstr "סַיוּרָה"
+
+#: src/sayura-addon.conf.in.in:3
+msgid "Sayura Sinhala Input Method For Fcitx"
+msgstr "שיטת קלט של סינהלית סַיוּרית עבור Fcitx"
+
+#: src/sayura.conf.in:3
+msgid "Sinhala (Sayura)"
+msgstr "סינהלית (סַיוּרָה)"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:8
+msgid "Sinhala input method"
+msgstr "שיטת קלט של סינהלית"

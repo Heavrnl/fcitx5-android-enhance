@@ -1,0 +1,37 @@
+#
+# 辞書ファイルを生成するためのスクリプト
+#
+# ./mkworddic -f dict.args
+# 
+# (euc な辞書のみを使い、anthyの辞書も euc にすることで
+#  anthy.dic のサイズを抑える場合のサンプル)
+#
+set_input_encoding eucjp
+read @top_srcdir@/alt-cannadic/gcanna.ctd
+#
+read @top_srcdir@/alt-cannadic/gcannaf.ctd
+read @top_srcdir@/alt-cannadic/gtankan.ctd
+read @top_srcdir@/alt-cannadic/g_fname.t
+#
+read @top_srcdir@/mkworddic/adjust.t
+read @top_srcdir@/mkworddic/compound.t
+read @top_srcdir@/mkworddic/extra.t
+#read @top_srcdir@/mkworddic/base.t
+#
+#set_input_encoding utf8
+#read @top_srcdir@/alt-cannadic/extra/g-jiritu-34.t
+#read @top_srcdir@/alt-cannadic/extra/gf-fuzoku-34.t
+#read @top_srcdir@/alt-cannadic/extra/gc-fullname-34.t
+#
+#read @top_srcdir@/alt-cannadic/extra/gt-tankanji_hikanji-34.t
+#read @top_srcdir@/alt-cannadic/extra/gt-tankanji_kanji-34.t
+#read @top_srcdir@/alt-cannadic/extra/gt-tankanji_hikanji-uni.t
+#read @top_srcdir@/alt-cannadic/extra/gt-tankanji_okuri-std.t
+#
+# this command will make reverse dictionary
+build_reverse_dict
+# this command will make dictionary body in eucjp
+set_dict_encoding eucjp
+read_uc @top_srcdir@/mkworddic/udict
+write anthy.wdic
+done

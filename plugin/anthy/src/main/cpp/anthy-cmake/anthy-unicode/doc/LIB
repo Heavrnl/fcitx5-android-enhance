@@ -1,0 +1,213 @@
+* Anthyライブラリの使用方法の説明 *
+
+ライブラリのオプション	-lanthy -lanthydic
+(もしくはpkg-configでanthyを指定する)
+インクルードファイル	anthy/anthy.h
++anthy_ で始まる関数名はライブラリ内部の使用のために予約されている
+
+* データ型 *
+anthy_conv_stat 現在の変換の状態を得るために用いる
+ 文がいくつの文節に分割されたかを得ることができる
+anthy_segment_stat 文節の状態を得るために用いる
+ 文節がいくつの変換候補を持っているかを得ることができる
+ 文節の長さを得ることができる(テスト用)
+anthy_prediction_stat 予測候補の数を得ることができる
+anthy_context_t 変換のコンテキストを識別するために用いる
+ ポインタ型である
+char * デフォルトではエンコードにはEUC-JPを利用する。
+
+* 関数の概説 *
+初期化関数
+ anthy_init                   Anthyの初期化
+ anthy_conf_override          設定の更新
+ anthy_set_personality        パーソナリティの設定
+ anthy_quit                   Anthyの終了
+コンテキストの管理
+ anthy_create_context         変換コンテキストの作成
+ anthy_reset_context          変換コンテキストのリセット
+ anthy_release_context        変換コンテキスト解放
+コンテキストに対する操作
+ anthy_set_string             変換文字列の設定
+ anthy_resize_segment         文節の伸縮
+変換結果の取得
+ anthy_get_stat               変換結果の文節数の取得
+ anthy_get_segment_stat       文節に対する候補数の取得
+ anthy_get_segment            候補の取得
+結果のコミット
+ anthy_commit_segment	      変換結果のコミット
+予測入力
+ anthy_set_prediction_string  予測入力の文字列の設定
+ anthy_get_prediction_stat    予測入力の状態の取得
+ anthy_get_prediction         予測文字列の取得
+ anthy_commit_prediction      予測文字列の確定
+逆変換
+ anthy_set_reconversion_mode  逆変換モードの設定
+エンコーディング
+ anthy_context_set_encoding   エンコーディングの設定
+その他
+ anthy_print_context          変換コンテキストの内容の表示
+ anthy_get_version_string     Anthyのバージョンを取得する
+ anthy_set_logger             ログ出力用の関数をセットする
+
+* 各関数の説明 *
+ int anthy_init(void)
+ 引数: 無し
+ 返り値: 0 なら成功 -1なら失敗
+ anthy全体の初期化を行う。anthy_conf_override()以外の関数は
+ 初期化してから呼ばないといけない。
+
+
+ void anthy_conf_override(char *var, char *val);
+ 引数: var 変数名
+       val 値
+ 返り値: 無し
+ *各変数については述べない。
+ *anthy_initの前に呼ぶことによって、動作を変えることもできる。
+
+
+ int anthy_set_personality(char *id);
+ 引数: var 変数名
+ 返り値: 成功時には0、失敗時には-1
+ *カレントpersonalityを変更する。最初にcontextを作成するまでに
+ 一度だけ設定できる。
+ *使用できる文字はファイル名に使える文字と同じ
+
+
+ void anthy_quit(void);
+ 引数: 無し
+ 返り値: 無し
+ *Anthy library内で確保したメモリなどのリソースを解放する
+ *現時点では実装されていない
+ *アプリケーション終了時に呼出す必要は無い
+
+
+ anthy_context_t anthy_create_context(void);
+ 引数: 無し
+ 返り値: 作成したコンテキスト 失敗なら0
+ *変換コンテキストを作成する。
+
+
+ void anthy_reset_context(anthy_context_t ac);
+ 引数: ac コンテキスト
+ 返り値: 無し
+ *変換コンテキストをリセットする。
+
+
+ void anthy_release_context(anthy_context_t ac);
+ 引数: ac コンテキスト
+ 返り値: 無し
+ *変換コンテキストを解放する。
+ *このコンテキストはそれ以降使えない。
+
+
+ int anthy_set_string(anthy_context_t ac, char *str);
+ 引数: ac コンテキスト
+       str 変換対象の文字列
+ 返り値: 成功時には0、失敗時には-1
+ *変換コンテキストに文字列を設定する。
+ *そのコンテキストに関連するそれまでの情報は破棄される。
+ *strはEUC-JPで与える。
+ *漢字かな混じり文を渡した場合、各漢字を一旦ひらがなに変換した上で
+  再変換を行う。
+
+
+ void anthy_resize_segment(anthy_context_t ac, int nth, int resize);
+ 引数: ac コンテキスト
+       nth 文節のインデックス 0から始まる
+       resize 文節を何文字伸ばすか。
+ 返り値: 無し
+ *文節を伸縮する。
+ *resizeに負の数を与えることによって文節を縮めることができる。
+ *無効な操作の場合は無視される。
+
+
+ int anthy_get_stat(anthy_context_t ac, struct anthy_conv_stat *cs);
+ 引数: ac コンテキスト
+       cs anthy_conv_stat
+ 返り値: 成功の場合は0
+ *現在のコンテキストの状態を取得する。
+ *コンテキストに設定した文字列がいくつの文節に分割されたかを知ることができる。
+
+
+ int anthy_get_segment_stat(anthy_context_t ac, int n, struct anthy_segment_stat *ss);
+ 引数: ac コンテキスト
+       n 文節の番号 0から始まる
+       ss anthy_segment_stat
+ 返り値: 成功の場合は0
+ *現在のコンテキストのn番目の文節の状態を取得する。
+ *その文節にいくつの候補があるかを知ることができる。
+
+
+ int anthy_get_segment(anthy_context_t ac, int s, int n, char *buf, int len);
+ 引数: ac コンテキスト
+       s 文節の番号 0から始まる
+       n 候補の番号 0から始まる
+       buf 候補の文字列を取得するバッファ
+       len バッファの長さ
+       nにNTH_UNCONVERTED_CANDIDATEを指定すると
+       変換前のひらがな文字列を得ることができる(再変換
+       (anthy_set_string参照)を行なった場合、一度ひらがなに
+       変換された文字列が対象となる)
+       他にも次の候補番号が指定できる
+        NTH_KATAKANA_CANDIDATE カタカナの候補
+        NTH_HIRAGANA_CANDIDATE 平仮名の候補
+        NTH_HALFKANA_CANDIDATE 半角カナの候補
+       NTH_HALFKANA_CANDIDATEに限り確定しても学習は行われない。
+ 返り値: 失敗の場合は -1、成功の場合は文字数(nullは含まない)を返す
+ *s番目の文節のn番目の候補を取得することができる。
+ *結果はbuf中に最後のnull terminateまで含めてlenバイトまで確保される。
+ *もしbuf が nullであれば結果のコピーは行われない。
+  (これを利用して確保すべきバッファのサイズを取得すると良い)
+
+
+ int anthy_commit_segment(anthy_context_t ac, int s, int n);
+ 引数: ac コンテキスト
+       s 文節の番号
+       n 候補の番号
+ *コンテキスト中のs番目の文節をn番目の候補で確定する。
+ *すべての文節が確定したときに学習などがおこなわれる。
+
+
+ int anthy_set_prediction_string(anthy_context_t ac, const char *str);
+ int anthy_get_prediction_stat(anthy_context_tm struct anthy_prediction_stat *aps);
+ int anthy_get_prediction(anthy_context_t ac, int nth, char *buf, int buf_len);
+ int anthy_commit_prediction(anthy_context_t ac, int nth);
+
+
+ int anthy_set_reconversion_mode(anthy_context_t ac, int mode);
+ 引数: ac コンテキスト
+       mode 逆変換のモード
+       modeには次の定数が指定できる。
+       ANTHY_RECONVERT_AUTO 漢字が混じっている場合に逆変換を行なう
+       ANTHY_RECONVERT_DISABLE 常に順変換を行なう
+       ANTHY_RECONVERT_ALWAYS 常に逆変換を行なう
+       デフォルトではANTHY_RECONVERT_AUTOを指定した状態で動作する
+ 返り値: 設定されたモード
+ *指定したコンテキストの逆変換の利用方法を設定する。
+
+
+ int anthy_context_set_encoding(anthy_context_t ac, int encoding);
+ 引数: ac コンテキスト
+       encoding エンコーディング
+       encodingには次のいずれかの定数を指定する。
+       ANTHY_COMPILED_ENCODING (現時点では動作は不定)
+       ANTHY_EUC_JP_ENCODING EUC-JPを使用します
+       ANTHY_UTF8_ENCODING UTF8を使用します
+ 返り値: 設定されたエンコーディング
+ *変換コンテキストのAPI呼び出しに使用する文字列のエンコーディングを
+  指定する。
+ *デフォルトではANTHY_EUC_JP_ENCODINGが指定された状態で動作する
+
+
+ int anthy_print_context(anthy_context_t ac);
+ 引数: ac コンテキスト
+ 変換コンテキストの内容を標準出力に書き出す
+ 形式は実装依存
+
+
+ char *anthy_get_version_string (void);
+ 返り値: Anthyのバージョンを表す文字列
+ Anthyのバージョンを取得する
+
+
+ void anthy_set_logger(anthy_logger logger, int level);

@@ -1,0 +1,300 @@
+* Anthy Input ライブラリの使用方法の説明 *
+
+ * 今からアプリケーションを書く場合にはuimの利用をお薦めします。
+
+ライブラリのオプション	-lanthyinput -lanthy -lanthydic
+インクルードファイル	anthy/anthy.h anthy/input.h
+                          (anthy/anthy.h を先にインクルードすること)
+
+* データ型の概説 *
+anthy_input_config  ローマ字変換の設定などに用いる。
+ライブラリのユーザは中身をみてはいけない。
+anthy_input_context 入力のコンテキストを識別するために用いる。
+ライブラリのユーザは中身をみてはいけない。
+anthy_input_preedit ライブラリからプリエディットを得るときに用いられる。
+プリエディット全体を表す。
+anthy_input_segment ライブラリからプリエディットを得るときに用いられる。
+候補を得るときにも用いられる。文節を表す。
+
+char * エンコードにはEUC-JPを利用する。
+
+* 関数の概説 *
+初期化関数など
+ anthy_input_init		ライブラリの初期化
+ anthy_input_set_personality	パーソナリティの設定
+コンテキストの管理
+ anthy_input_create_context	入力コンテキストの作成
+ anthy_input_free_context	入力コンテキストの解放
+設定
+ anthy_input_create_config	デフォルトの設定の作成
+ anthy_input_free_config	デフォルトの設定の解放
+ anthy_input_edit_toggle_config	英数との一時的トグルに使うキーの変更
+ anthy_input_edit_rk_config	キーと文字の対応の変更
+ anthy_input_clear_rk_config	キーと文字の対応をデフォルトに戻す
+ anthy_input_change_config	設定の変更の通知
+コンテキストの操作(直接的な操作)
+ anthy_input_str		文字列の追加
+ anthy_input_next_candidate	次の候補(選択中の文節に適用)
+ anthy_input_prev_candidate	前の候補(選択中の文節に適用)
+ anthy_input_quit		変換をキャンセル(1段階)
+ anthy_input_erase_prev		カーソル前の文字を削除
+ anthy_input_erase_next		カーソル後の文字を削除
+ anthy_input_commit		確定
+ anthy_input_move		カーソル、選択中文節を移動
+ anthy_input_resize		選択中文節の長さを変更
+ anthy_input_beginning_of_line  プリエディット先頭に移動
+ anthy_input_end_of_line        プリエディット末尾に移動
+ anthy_input_cut                文字列の切り取り
+コンテキストの操作(キーに対応した動作)
+ anthy_input_key		1文字の追加
+ anthy_input_space		スペースまたは変換(コンテキスト依存)
+コンテキストの操作(その他)
+ anthy_input_get_state          現在の状態の取得
+ anthy_input_get_preedit	プリエディットを得る
+ anthy_input_map_select		ローマ字仮名変換マップの切替え
+ anthy_input_get_selected_map   現在のローマ字仮名変換マップの取得
+ anthy_input_get_candidate	候補番号を指定して候補を得る
+ anthy_input_select_candidate	候補番号を指定して候補を選ぶ
+ anthy_input_free_preedit	プリエディットの解放
+					(属する文節構造体も同時に解放する)
+ anthy_input_free_segment	文節の解放
+設定の変更
+ anthy_input_map_edit		ローマ字仮名変換マップの編集(未対応)
+
+* 状態 *
+ 待機状態(1)     プリエディットは存在しない
+ 編集中状態(2)   ローマ字入力中の状態。
+                 カーソル位置の文節に文字列がない。
+                 選択中文節はカーソル位置の文節を指している。
+ 変換中状態(3)   変換中の状態。
+ 文節伸縮状態(4) 文節伸縮中の状態。
+                 選択中文節以降はすべて平仮名になる。
+                 選択中文節より後ろは全てまとめて一文節になる。
+
+* 各関数の説明 *
+ int anthy_input_init(void);
+ 引数: 無し
+ 返り値: 0 なら成功 -1 なら失敗
+ ライブラリを初期化する。anthyライブラリも初期化する。
+
+ struct anthy_input_config* anthy_input_create_config(void);
+ 引数: 無し
+ 返り値: 設定構造体のポインタ
+ 設定構造体を得る。設定構造体はデフォルト値で初期化されている。
+
+ void anthy_input_free_config(struct anthy_input_config* cfg);
+ 引数: 設定構造体のポインタ
+ 返り値: 無し
+ 設定構造体を解放する。この設定を共有する全ての入力コンテキ
+ ストを事前に解放する事。
+
+ anthy_input_set_personality(char *personality);
+ 引数: personality パーソナリティの名前
+ 返り値: 無し
+
+ struct anthy_input_context* 
+ anthy_input_create_context(struct anthy_input_config* cfg);
+ 引数: cfg 設定構造体のポインタ
+ 返り値: 入力コンテキストのポインタ
+ 入力コンテキストのポインタを得る。引数に与えた設定構造体に
+ 適用した操作は、入力コンテキストを作った後にでも、すぐに入
+ 力コンテキストに反映される。
+ コンテキストは待機状態で作成される。
+
+ void anthy_input_free_context(struct anthy_input_context* ictx);
+ 引数: ictx 入力コンテキスト
+ 返り値: なし
+ 入力コンテキストを解放する。
+
+ void anthy_input_str(struct anthy_input_context* ictx, char* str);
+ 引数: ictx コンテキスト構造体
+       str 追加する文字列
+ 返り値: 無し
+ 追加する文字列はローマ字(半角)で入力する。
+ 待機状態と編集中状態ではプリエディットに文字列を追加する。
+ 変換中状態と文節伸縮状態ではプリエディットをその状態で確定して、
+ 新たにstrだけを持つプリエディットを作る。
+ 呼出後は編集中状態になる。
+
+ void anthy_input_next_candidate(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態では全文節を変換し、変換中状態にはいる。
+ 変換中状態では選択中文節の候補を次の候補にする。
+ 文節伸縮状態では選択中文節以降を変換し、変換中状態に入る。
+
+ void anthy_input_prev_candidate(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態では全文節を変換し、変換中状態にはいる。
+ 変換中状態では選択中文節の候補を前の候補にする。
+ 文節伸縮状態では選択中文節以降を変換し、変換中状態に入る。
+
+ void anthy_input_quit(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態では待機状態になる。
+ 編集中状態と文節伸縮状態では編集中状態になる。
+
+ void anthy_input_erase_prev(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態だけで有効。
+ カーソルの前1文字を消す。
+ 消した結果プリエディットがなくなれば、待機状態になる。
+
+ void anthy_input_erase_next(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態だけで有効。
+ カーソルの後1文字を消す。
+ 消した結果プリエディットがなくなれば、待機状態になる。
+
+ void anthy_input_commit(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 現在のプリエディットの状態で確定する。
+ 待機状態に戻る。
+
+ void anthy_input_move(struct anthy_input_context* ictx, int lr);
+ 引数: ictx コンテキスト構造体
+       lr 移動方向
+ 返り値: 無し
+ 編集中状態ではカーソルを移動する。
+ 変換中状態では選択文節を移動する。
+ 文節伸縮状態では変換中状態に戻り、選択文節を移動する。
+ lr = -1 で左移動、 lr = 1 で右移動。
+
+ void anthy_input_resize(struct anthy_input_context* ictx, int lr);
+ 引数: ictx コンテキスト構造体
+       lr 伸縮方向
+ 返り値: 無し
+ 変換中状態では選択文節を伸縮させ、文節伸縮状態になる。
+ 文節伸縮状態では選択文節を伸縮する。
+ lr = -1 で縮小、 lr = 1 で伸長。
+
+ void anthy_input_beginning_of_line(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態だけで有効。
+ カーソルをプリエディットの先頭に移動させる。
+ 
+ void anthy_input_end_of_line(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態だけで有効。
+ カーソルをプリエディットの末尾に移動させる。
+ 
+ void anthy_input_cut(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ 編集中状態だけで有効。
+ カーソル以降の文字列を消す。消した文字列は記憶している。
+
+ void anthy_input_str(struct anthy_input_context* ictx, char c);
+ 引数: ictx コンテキスト構造体
+       c 追加する文字
+ 返り値: 無し
+ anthy_input_key とほぼ同じ。ただし、 1 文字だけ追加する。
+
+ void anthy_input_space(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 無し
+ コンテキストに応じて空白の追加、変換のどちらかになる。
+
+ struct anthy_input_preedit*
+ anthy_input_get_preedit(struct anthy_input_context* ictx);
+ 引数: ictx コンテキスト構造体
+ 返り値: 現在のプリエディット
+ 現在のプリエディットを得る。得たプリエディットを書き換えてはいけない。
+ プリエディットの中身は後述。
+
+ int anthy_input_map_select(struct anthy_input_context* ictx, int map);
+ 引数: ictx コンテキスト構造体
+       map マップ番号
+ 返り値: 成功 0 失敗 それ以外
+ ローマ字からの変換マップを変更する。 map に指定できるのは以下の定数
+   MAP_HIRAGANA  ひらがな
+   MAP_KATAKANA  かたかな
+   MAP_ALPHABET  アルファベット
+   MAP_WALPHABET 全角アルファベット
+
+ struct anthy_input_segment* 
+ anthy_input_get_candidate(struct anthy_input_context* ictx, int cand_no);
+ 引数: ictx コンテキスト構造体
+       cand_no 候補番号
+ 返り値: 目的の候補を含んだ文節構造体
+ 変換中状態でだけ有効。
+ 選択中文節の指定した番号の候補を得る。
+ 次に anthy_input_get_candidate でプリエディットを要求した時は、 cand_no
+ の次の候補が返される。
+
+ int anthy_input_select_candidate(struct anthy_input_context* ictx, int cand);
+ 引数: ictx コンテキスト構造体
+       cand_no 候補番号
+ 返り値: 成功 0 失敗 それ以外
+ 変換中状態でだけ有効。
+ 選択中文節の指定した番号の候補を選択し、選択中文節を右の文節に移動させる。
+
+ void anthy_input_free_preedit(struct anthy_input_preedit* pedit);
+ 引数: pedit プリエディット構造体
+ 返り値: 無し
+ プリエディット構造体を解放する。
+
+ void anthy_input_free_segment(struct anthy_input_segment* cand);
+ 引数: cand 文節構造体。
+ 返り値: 無し
+ 文節構造体を解放する。
+
+* データ型の説明 *
+struct anthy_input_preedit {
+  int state;                                      /* 状態 */
+
+  char* commit;                                   /* 確定文字列 */
+  char* cut_buf;                                  /* 切り取った文字列 */
+
+  struct anthy_input_segment* segment;            /* 文節リスト */
+  struct anthy_input_segment* cur_segment;        /* 選択中の文節 */
+};
+
+ state: 現在の状態
+             ST_NONE 待機状態
+             ST_EDIT 編集中状態
+             ST_CONV 変換中状態
+             ST_CSEG 文節伸縮状態
+ commit: NULL でなければ、確定された文字列が入っている。
+         commit は一度 anthy_input_get_preedit すると消える。
+ cut_buf: NULL でなければ、 anthy_input_cut により消された文字列が入っている。
+          cut_buf は一度 anthy_input_get_preedit すると消える。
+ segment: 変換中、文節伸縮状態では文節のリスト
+          編集中状態では、カーソル前文字列、ローマ字文字列、空文節、
+          カーソル後文字列のリスト
+ cur_segment: カーソルのある文節
+
+struct anthy_input_segment {
+  char* str;                            /* 文字列 */
+  int cand_no;                          /* 候補番号 */
+  int noconv_len;                       /* 無変換状態でのバイト数 */
+  int nr_cand;                          /* 候補数 */
+  int flag;                             /* フラグ */
+
+  struct anthy_input_segment* next;     /* 次の文節 */
+};
+ str: 現在の候補の文字列
+      (編集中状態の、カーソルを表す文節では NULL になっている)
+ cand_no: 候補番号 (0 〜 nr_cand - 1, 
+                    候補の割り当てられた文節でないときと無変換候補のときは -1)
+ noconv_len: 無変換状態での文節の文字列の長さ (バイト数)
+ nr_cand: 全候補数 (候補の割り当てられた文節でないときは -1)
+ flag: 文節の種類を表すフラグ
+           SF_CURSOR       カーソルまたは選択中文節
+           SF_ENUM         数回連続で変換キーが押されるなどしたので、
+                           候補一覧を表示することをライブラリが提案している。
+                           これを受け取ると、 anthy_input_get_candidate
+                           を使って候補一覧を表示するのが望ましい。
+           SF_ENUM_REVERSE 逆方向の候補一覧を表示することをライブラリが
+                           提案している
+           SF_EDITTING     編集中状態の文字列
+           SF_PENDING      まだローマ字のままで、仮名にもなっていない文字列
+           SF_FOLLOWING    文節伸縮状態で、選択中文節より後ろの文字列
+                           を 1 文節にした文節

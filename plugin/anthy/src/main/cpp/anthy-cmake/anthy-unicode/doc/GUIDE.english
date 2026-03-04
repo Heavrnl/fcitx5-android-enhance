@@ -1,0 +1,41 @@
+*This document is a simple guide for non Japanse people to use Anthy.
+
+*Correction for my poor English is welcome.
+*Many part of this document is not yet written.
+--  --  --  --
+*How to INSTALL
+*Why conversion system?
+*How to USE
+
+--  --  --  --
+*How to INSTALL
+ You can use .rpm or .deb to install Anthy.
+ You also can install Anthy from source package
+ $ ./configure; make ;make install
+ shared libraries, utility commands, and grammer definition
+ files will be installed.
+
+--  --  --  --
+*Why conversion system?
+ Japanese text contains both phonetic characters and
+ ideographic characters. There are two classes of phonetic
+ symbols, Hiragana and Katakana. Ideographic
+ symbol in Japanese is called Kanji.
+ Japanese also uses English alphabet to type an
+ unix command, to write a program and so on,
+ thus generally input method systems have ability
+ to enable or disable itself easily.
+
+ Class of characters in Japanese texts.
+  With Japanese input method enabled
+   -phonetic character
+   -ideographic character
+  With Japanese input method disabled
+   -English(Latin) character
+--  --  --  --
+*How to USE
+ Anthy's conversion system is implemented as a library,
+ so you should use a software (e.g. XIM server to input on
+ an X application) which uses the library.
+ This package contains an utility command and Emacs lisp files
+ to use Anthy from Emacs.

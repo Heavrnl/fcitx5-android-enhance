@@ -1,0 +1,7 @@
+[InputMethod]
+Name=Chewing
+Icon=fcitx-chewing
+Label=酷
+LangCode=zh_TW
+Addon=chewing
+Configurable=True

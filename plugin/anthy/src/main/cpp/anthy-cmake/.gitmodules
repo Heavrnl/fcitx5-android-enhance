@@ -1,0 +1,3 @@
+[submodule "anthy-unicode"]
+	path = anthy-unicode
+	url = https://github.com/fujiwarat/anthy-unicode.git

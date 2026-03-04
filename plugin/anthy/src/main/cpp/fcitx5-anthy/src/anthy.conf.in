@@ -1,0 +1,7 @@
+[InputMethod]
+Name=Anthy
+Icon=fcitx-anthy
+LangCode=ja
+Addon=anthy
+Configurable=True
+Label=あ

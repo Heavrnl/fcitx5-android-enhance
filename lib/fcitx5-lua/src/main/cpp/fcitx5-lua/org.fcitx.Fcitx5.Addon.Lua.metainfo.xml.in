@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="addon">
+  <id>org.fcitx.Fcitx5.Addon.Lua</id>
+  <extends>org.fcitx.Fcitx5</extends>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1+</project_license>
+  <name>Lua support</name>
+  <summary>Add Lua support to Fcitx 5</summary>
+  <developer id="org.fcitx-im">
+      <name>The Fcitx Team</name>
+  </developer>
+  <url type="homepage">https://fcitx-im.org</url>
+  <url type="bugtracker">https://github.com/fcitx/fcitx5-lua/issues</url>
+  <url type="vcs-browser">https://github.com/fcitx/fcitx5-lua</url>
+  <project_group>Fcitx</project_group>
+  <releases>
+    <release version="5.0.15" date="2025-06-15"/>
+    <release version="5.0.14" date="2025-01-22"/>
+    <release version="5.0.13" date="2024-04-22"/>
+    <release version="5.0.12" date="2024-01-02"/>
+    <release version="5.0.11" date="2023-09-29"/>
+    <release version="5.0.10" date="2022-08-29"/>
+    <release version="5.0.9" date="2022-07-03"/>
+    <release version="5.0.8" date="2022-05-22"/>
+    <release version="5.0.7" date="2022-03-09"/>
+    <release version="5.0.6" date="2022-02-01"/>
+    <release version="5.0.5" date="2021-05-04"/>
+    <release version="5.0.4" date="2021-03-21"/>
+    <release version="5.0.3" date="2021-02-18"/>
+    <release version="5.0.2" date="2021-01-11"/>
+    <release version="5.0.1" date="2020-12-03"/>
+    <release version="5.0.0" date="2020-10-30"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

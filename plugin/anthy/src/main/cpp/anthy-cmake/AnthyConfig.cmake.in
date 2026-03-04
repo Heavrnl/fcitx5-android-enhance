@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/AnthyTargets.cmake")
+
+set_and_check(Anthy_INCLUDE_DIR "${PACKAGE_PREFIX_DIR}/include")
+add_library(Anthy::Library ALIAS "Anthy::anthy-unicode")
+add_library(Anthy::Dictionary ALIAS "Anthy::anthydic-unicode")
+set_and_check(Anthy_TARGET "Anthy::Library")
+
+check_required_components(Anthy)

@@ -1,0 +1,56 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx5-jyutping package.
+#
+# Translators:
+# Ettore Atalan <atalanttore@googlemail.com>, 2022
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fcitx5-jyutping\n"
+"Report-Msgid-Bugs-To: fcitx-dev@googlegroups.com\n"
+"POT-Creation-Date: 2025-02-21 20:24+0000\n"
+"PO-Revision-Date: 2022-12-07 15:20+0000\n"
+"Last-Translator: Ettore Atalan <atalanttore@googlemail.com>, 2022\n"
+"Language-Team: German (https://app.transifex.com/fcitx/teams/12005/de/)\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/engine/org.fcitx.Fcitx5.Addon.Jyutping.metainfo.xml.in:7
+#: src/engine/jyutping.conf.in:2 src/engine/jyutping-addon.conf.in.in:2
+msgid "Jyutping"
+msgstr ""
+
+#: src/engine/org.fcitx.Fcitx5.Addon.Jyutping.metainfo.xml.in:8
+msgid "Jyutping input method"
+msgstr ""
+
+#: src/engine/engine.cpp:418
+msgid "Prediction"
+msgstr "Vorhersage"
+
+#: src/engine/engine.cpp:692
+#, c++-format
+msgid "Press {0} for {1}"
+msgstr ""
+
+#: src/engine/engine.cpp:689
+#, c++-format
+msgid "Press {0} for {1} and {2} for {3}"
+msgstr ""
+
+#: src/engine/engine.cpp:690
+msgid "Return"
+msgstr ""
+
+#: src/engine/engine.cpp:419
+msgid "Show prediction words"
+msgstr "Vorhersagewörter anzeigen"
+
+#: src/engine/engine.cpp:121
+#, c++-format
+msgid "{0} ({1})"
+msgstr "{0} ({1})"

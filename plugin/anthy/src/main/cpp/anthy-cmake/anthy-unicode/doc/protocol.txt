@@ -1,0 +1,130 @@
+EGG との通信のプロトコル
+ anthy-agentコマンドに--eggオプションを設定して起動することで利用可能です。
+
+挨拶
+	greeting = server-name " (" version ") " options " :" string CRLF
+	server-name = string
+	version = 1*(DIGIT)
+	options = "[" string 1*(", " string ) "]"
+
+Command Semantics and Syntax
+
+	context-desc = 1*( DIGIT)
+		; context descriptor
+
+	seg-no  = 1*(DIGIT)
+		; segment number (0 origin)
+
+	candidate-offset = 1*(DIGIT)
+
+	max-candidates = 1*(DIGIT)
+
+	cand-no = 1*(DIGIT)
+		; candidate number (0 origin)
+
+	string = 1*<any CHAR excluding control characters>
+
+	error = "-ERR" SP error-code SP string CRLF
+
+	error-code = 1*( DIGIT )
+
+	success-with-number = "+OK" SP number CRLF
+
+	number = 1*( DIGIT )
+
+	success = "+OK" CRLF
+
+	segments = "+DATA" SP seg-no SP number-of-segments-removed SP
+		   number-of-segments-inserted CRLF
+		   1*( number-of-candidates SP converted SP yomi CRLF )
+		   CRLF
+
+	number-of-replaced = 1*( DIGIT )
+
+	offset = 1*( DIGIT )
+
+	number-of-segments = 1*( DIGIT )
+
+	converted = string
+
+	yomi = string
+
+	candidates = "+DATA" SP offset SP number-of-candidates CRLF
+		   1*( converted CRLF )
+		   CRLF
+
+	number-of-candidates = 1*( DIGIT )
+
+
+1. コンテクスト生成
+  Command:
+	command-new-context = "NEW-CONTEXT" parameters CRLF
+	parameters = *( SP expression )
+		   ; e.g. : Encoding specification, etc.
+	expression = var "=" value
+	var = 1*(ALPHA) 1*(ALPHA / DIGIT)
+	value = string
+		   ; INPUT=UTF-8 OUTPUT=UTF-8
+		   ; INPUT=#106 OUTPUT=#106
+		   ; INPUT=EUC-JP OUTPUT=EUC-JP
+		   ; INPUT=#18 OUTPUT=#18
+
+  Reply:
+	reply-of-new-context = error
+			     / success-with-number
+			     ; number: context-descriptor
+
+2. コンテクスト解放
+  Command:
+	command-release-context = "RELEASE-CONTEXT" SP context-desc CRLF
+
+  Reply:
+	reply-of-release-context = error / success
+
+3. 変換
+  Command:
+	command-convert = "CONVERT" SP context-desc SP input CRLF
+	input = string
+
+  Reply:
+	reply-of-convert = error / segments
+
+4. 変換結果コミット/キャンセル
+  Command:
+	command-commit-or-cancel = "COMMIT" SP context-desc SP do-cancel CRLF
+	do-cancel = "0" / "1"
+		  ;  0 のとき確定。その他のときキャンセル。
+  Reply:
+	reply-of-commit-or-cancel = error / success
+
+5.候補取得
+  Command:
+	command-get-candidates = "GET-CANDIDATES" SP context-desc SP
+			          seg-no SP candidate-offset SP
+				  max-candidates CRLF
+
+  Reply:
+	reply-of-get-candidates = error / candidates
+
+6. 候補確定
+  Command:
+	command-select-candidate = "SELECT-CANDIDATE" SP context-desc SP
+				   seg-no SP cand-no CRLF
+  Reply:
+	reply-of-select-candidate = error / success / segments
+
+7. 文節伸縮
+  Command:
+	command-resize-segment = "RESIZE-SEGMENT" SP context-desc SP
+				  seg-no SP inc-dec CRLF
+	inc-dec = "0" / "1"
+		; "0" means increment, while "1" means decrement
+  Reply:
+	reply-of-resize-segment = error / segments
+
+8. 終了
+  Command:
+	command-quit = "QUIT" CRLF
+  Reply:
+	no reply, connection will be closed by server.
+-- 

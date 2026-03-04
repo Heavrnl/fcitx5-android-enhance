@@ -1,0 +1,68 @@
+This document is written in Japanese(EUC-JP).
+
+本ソフトウェアの概要についてはREADMEをお読みください。
+
+(1)インストールに必要なもの
+(2)インストールの手順
+(3)インストールされるファイル
+(4)アンインストールの手順
+(5)補足
+
+
+(1)インストールに必要なもの
+ コンパイラ等および、emacs
+
+(2)インストールの手順
+各種プログラムを作ります。
+$ ./configure
+$ make
+
+うまくできたら
+$ su
+# make install
+でインストールします。
+
+あるいはテストプログラムを実行します。
+$ cd test
+$ ./anthy
+
+emacsから使う場合はdoc/ELISPを参照してください．
+
+(3)インストールされるファイル
+bin/anthy-dic-tool-utf
+bin/anthy-agent-utf
+bin/anthy-morphological-analyzer-utf
+share/emacs/site-lisp/anthy-utf/leim-list.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy-dic.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy-isearch.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy-kyuri.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy-conf.{el,elc}
+share/emacs/site-lisp/anthy-utf/anthy-azik.{el,elc}
+share/anthy-utf/zipcode.t
+share/anthy-utf/anthy.dic
+share/anthy-utf/typetab
+share/anthy-utf/dic-tool-usage.txt
+include/anthy-utf/anthy.h
+include/anthy-utf/dicutil.h
+include/anthy-utf/input.h
+lib/libanthyinput-utf.{a,so}
+lib/libanthy-utf.{a,so}
+lib/libanthydic-utf.{a,so}
+lib/pkgconfig/anthy-utf.pc
+etc/anthy-utf.conf
+
+(4)アンインストールの手順
+ コンパイルを行ったディレクトリで su ; make uninstall を行うか
+ (3)で述べたファイルを手動で消してください。
+ 各個人の履歴は~/.anthy/以下にあるのでそれも消してください。
+
+(5)補足
+--注意--
+ 特にオプションを指定せずにconfigureを行うと作成された
+ ライブラリは/usr/local/lib にインストールされますが
+ 多くのディストリビューションはデフォルトの設定では/usr/local/libの
+ シェアードライブラリを読みません。
+ */etc/ld.so.conf に /usr/local/lib を追加して ldconfigを行う。
+ *環境変数 LD_LIBRARY_PATHに /usr/local/lib をセットする。
+ のいずれかの方法で解決することができます。

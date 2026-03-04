@@ -1,0 +1,36 @@
+テストの方法
+
+*変換精度を自動的に測定するのは困難であるが模索していく
+*一般ユーザーの権限でテストできるようにする必要がある
+
+*簡単なテストであれば、emacs等のバックエンドであるanthy-agent
+コマンドを用いて行なうのが便利です
+ anthy-agentのオプション
+  --dir
+  --dic
+  --conf
+
+*簡単にテストデータを流してみるためには、
+$ cd test
+$ ./anthy --all
+ test/test.txtの内容が順に変換されます。
+$ ./anthy 1
+ のように番号を指定して特定の文字列を変換することもできます
+
+*ruby経由で実行するためにはswigのインストールが必要です
+ sh test.sh -compile
+でruby/anthyのモジュールをコンパイルし
+ sh test.sh
+で変換テストを実行します。実際に動作するのはtest/test.rbです。
+
+*環境変数を利用したデバッグ
+ ANTHY_ENABLE_DEBUG_PRINTになんらかの文字列が設定され、
+ ANTHY_DISABLE_DEBUG_PRINTに何も設定されていないときにデバッグプリントが有効になります
+
+ デバッグプリントを有効にして、
+ ANTHY_SPLITTER_PRINTに文字を設定するとsplitterの各種データ構造が出力されます
+ w wordlist
+ m metaword
+ a A*node
+ i 自立語のタイプ
+ 1 1文節だけ境界検出

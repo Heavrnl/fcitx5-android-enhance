@@ -1,0 +1,7 @@
+[InputMethod]
+Name=Thai
+Icon=fcitx-libthai
+Label=ท
+LangCode=th
+Addon=libthai
+Configurable=True

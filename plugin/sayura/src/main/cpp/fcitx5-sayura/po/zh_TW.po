@@ -1,0 +1,38 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx5-sayura package.
+#
+# Translators:
+# csslayer <wengxt@gmail.com>, 2020
+# bruh, 2020
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fcitx5-sayura\n"
+"Report-Msgid-Bugs-To: fcitx-dev@googlegroups.com\n"
+"POT-Creation-Date: 2020-11-29 00:03+0100\n"
+"PO-Revision-Date: 2020-04-02 17:32+0000\n"
+"Last-Translator: bruh, 2020\n"
+"Language-Team: Chinese (Taiwan) (https://www.transifex.com/fcitx/teams/12005/"
+"zh_TW/)\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:7
+msgid "Sayura"
+msgstr "Sayura"
+
+#: src/sayura-addon.conf.in:3
+msgid "Sayura Sinhala Input Method For Fcitx"
+msgstr "Fcitx 的 Sayura 僧伽羅語輸入法"
+
+#: src/sayura.conf.in:3
+msgid "Sinhala (Sayura)"
+msgstr "僧伽羅語 (Sayura)"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:8
+msgid "Sinhala input method"
+msgstr "僧伽羅語輸入法"

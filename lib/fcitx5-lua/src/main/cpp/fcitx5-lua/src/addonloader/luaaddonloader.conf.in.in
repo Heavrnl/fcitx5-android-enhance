@@ -1,0 +1,16 @@
+[Addon]
+Name=Lua Addon Loader
+Comment=Lua Addon support
+Category=Module
+Version=@PROJECT_VERSION@
+Type=@FCITX_ADDON_TYPE@
+OnDemand=True
+Configurable=False
+Library=libluaaddonloader
+
+[Addon/Dependencies]
+0=core:@REQUIRED_FCITX_VERSION@
+
+[Addon/OptionalDependencies]
+0=quickphrase
+

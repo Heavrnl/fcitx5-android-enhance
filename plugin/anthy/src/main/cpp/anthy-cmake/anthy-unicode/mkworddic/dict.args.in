@@ -1,0 +1,36 @@
+#
+# 辞書ファイルを生成するためのスクリプト
+#
+# ./mkworddic -f dict.args
+# 
+# 別のスクリプトからこのファイルをechoやcat、sed等を
+# 駆使して生成することも想定
+#
+set_input_encoding utf8
+read @top_srcdir@/alt-cannadic/gcanna.ctd
+#
+read @top_srcdir@/alt-cannadic/gcannaf.ctd
+read @top_srcdir@/alt-cannadic/gtankan.ctd
+#
+read @top_srcdir@/alt-cannadic/extra/g-jiritu-34.t
+read @top_srcdir@/alt-cannadic/extra/gc-fullname-34.t
+read @top_srcdir@/alt-cannadic/extra/gt-tankanji_kanji-34.t
+read @top_srcdir@/alt-cannadic/extra/gt-tankanji_hikanji-34.t
+read @top_srcdir@/alt-cannadic/extra/gf-fuzoku-34.t
+#
+read @top_srcdir@/mkworddic/adjust.t
+read @top_srcdir@/mkworddic/compound.t
+read @top_srcdir@/mkworddic/extra.t
+#read @top_srcdir@/mkworddic/base.t
+#
+set_input_encoding utf8
+#read @top_srcdir@/mkworddic/utf8.t
+read @top_srcdir@/alt-cannadic/g_fname.t
+#
+# this command will make reverse dictionary
+build_reverse_dict
+# this command will make dictionary body in utf8
+set_dict_encoding utf8
+read_uc @top_srcdir@/mkworddic/udict
+write anthy.wdic
+done

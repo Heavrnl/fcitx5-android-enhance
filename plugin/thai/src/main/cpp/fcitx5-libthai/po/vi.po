@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx5-libthai package.
+#
+# Translators:
+# hoanghuy309 <hoanghuy309@gmail.com>, 2025
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fcitx5-libthai\n"
+"Report-Msgid-Bugs-To: fcitx-dev@googlegroups.com\n"
+"POT-Creation-Date: 2025-04-22 20:24+0000\n"
+"PO-Revision-Date: 2020-04-01 16:17+0000\n"
+"Last-Translator: hoanghuy309 <hoanghuy309@gmail.com>, 2025\n"
+"Language-Team: Vietnamese (https://app.transifex.com/fcitx/teams/12005/vi/)\n"
+"Language: vi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: src/engine.h:32
+msgid "Basic check"
+msgstr ""
+
+#: src/engine.h:38
+msgid "Correction"
+msgstr ""
+
+#: src/engine.h:29
+msgid "KETMANEE"
+msgstr ""
+
+#: src/engine.h:37
+msgid "Keyboard Map"
+msgstr "Bản Đồ Bàn Phím"
+
+#: src/libthai-addon.conf.in.in:2
+msgid "LibThai Addon of Fcitx"
+msgstr ""
+
+#: src/engine.h:29
+msgid "PATTACHOTE"
+msgstr ""
+
+#: src/engine.h:31
+msgid "Passthrough"
+msgstr ""
+
+#: src/engine.h:32
+msgid "Strict"
+msgstr ""
+
+#: src/engine.h:40
+msgid "Strictness"
+msgstr ""
+
+#: src/engine.h:30
+msgid "TIS820_2538"
+msgstr ""
+
+#: org.fcitx.Fcitx5.Addon.LibThai.metainfo.xml.in:7 src/libthai.conf.in:2
+msgid "Thai"
+msgstr ""
+
+#: org.fcitx.Fcitx5.Addon.LibThai.metainfo.xml.in:8
+msgid "Thai language input method"
+msgstr "Kiểu gõ tiếng Thái"

@@ -1,0 +1,65 @@
+image: debian:latest
+
+before_script:
+  - export DEBIAN_FRONTEND= noninteractive
+  - apt-get update -y
+  - apt-get install -y nodejs jsonlint
+
+stages:
+  - test
+  - build
+  - deploy
+
+test rules:
+  stage: test
+  script:
+    - jsonlint-php data.min.json
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - data.min.json
+
+hash rules:
+  stage: build
+  script:
+    - sha256sum data.min.json | awk '{print $1}' > rules.min.hash
+    - node build_tools/minifyDataJSON.js "data.min.json" "data.minify.json"
+    - sha256sum data.minify.json | awk '{print $1}' > rules.minify.hash
+  artifacts:
+    paths:
+      - rules.min.hash
+      - data.minify.json
+      - rules.minify.hash
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - data.min.json
+
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp data.min.json public/data.min.json
+    - sha256sum public/data.min.json | awk '{print $1}' > public/rules.min.hash
+    - node build_tools/minifyDataJSON.js "public/data.min.json" "public/data.minify.json"
+    - sha256sum public/data.minify.json | awk '{print $1}' > public/rules.minify.hash
+    # Support old refs
+    - mkdir public/data
+    - cp public/data.min.json public/data/data.min.json
+    - cp public/rules.min.hash public/data/rules.min.hash
+    - cp public/data.minify.json public/data/data.minify.json
+    - cp public/rules.minify.hash public/data/rules.minify.hash
+  artifacts:
+    paths:
+      - public
+  only:
+    refs:
+      - merge_requests
+      - master
+    changes:
+      - data.min.json
+      - build_tools/minifyDataJSON.js

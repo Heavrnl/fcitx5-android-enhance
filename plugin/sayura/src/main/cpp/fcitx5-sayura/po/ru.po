@@ -1,0 +1,39 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the fcitx5-sayura package.
+#
+# Translators:
+# csslayer <wengxt@gmail.com>, 2020
+# Dmitry <dmitrydmitry761@gmail.com>, 2022
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fcitx5-sayura\n"
+"Report-Msgid-Bugs-To: fcitx-dev@googlegroups.com\n"
+"POT-Creation-Date: 2022-06-02 20:25+0000\n"
+"PO-Revision-Date: 2020-04-02 17:32+0000\n"
+"Last-Translator: Dmitry <dmitrydmitry761@gmail.com>, 2022\n"
+"Language-Team: Russian (https://www.transifex.com/fcitx/teams/12005/ru/)\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
+"(n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:7
+msgid "Sayura"
+msgstr "Sayura"
+
+#: src/sayura-addon.conf.in.in:3
+msgid "Sayura Sinhala Input Method For Fcitx"
+msgstr "Метод ввода Sayura Sinhala для Fcitx"
+
+#: src/sayura.conf.in:3
+msgid "Sinhala (Sayura)"
+msgstr "Sinhala (Sayura)"
+
+#: org.fcitx.Fcitx5.Addon.Sayura.metainfo.xml.in:8
+msgid "Sinhala input method"
+msgstr "Сингальский метод ввода"

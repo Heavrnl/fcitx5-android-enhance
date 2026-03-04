@@ -1,0 +1,6 @@
+[InputMethod]
+Name=Sinhala (Sayura)
+Icon=fcitx-sayura
+Label=අ
+LangCode=si
+Addon=sayura

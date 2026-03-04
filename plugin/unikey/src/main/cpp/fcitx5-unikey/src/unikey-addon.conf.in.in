@@ -1,0 +1,12 @@
+[Addon]
+Name=Unikey Wrapper For Fcitx
+Category=InputMethod
+Version=@PROJECT_VERSION@
+Enabled=True
+Library=libunikey
+Type=SharedLibrary
+OnDemand=True
+Configurable=True
+
+[Addon/Dependencies]
+0=core:@REQUIRED_FCITX_VERSION@

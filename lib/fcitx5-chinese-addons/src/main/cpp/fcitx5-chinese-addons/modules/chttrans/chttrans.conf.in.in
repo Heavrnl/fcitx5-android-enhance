@@ -1,0 +1,14 @@
+[Addon]
+Name=Simplified and Traditional Chinese Translation
+Category=Module
+Version=@PROJECT_VERSION@
+Library=libchttrans
+Type=@FCITX_ADDON_TYPE@
+Configurable=True
+OnDemand=True
+
+[Addon/Dependencies]
+0=core:@REQUIRED_FCITX_VERSION@
+
+[Addon/OptionalDependencies]
+0=notifications

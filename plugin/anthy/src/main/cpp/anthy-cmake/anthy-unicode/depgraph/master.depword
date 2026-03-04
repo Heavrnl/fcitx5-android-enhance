@@ -1,0 +1,37 @@
+# UTF-8
+#
+# 付属語の列を定義する
+#
+# indepword.txtに各品詞ごとの最初のノードが定義してある。
+#
+# 活用表
+\\include conjugate.table
+# 活用するもの
+\\include conjugate.depword
+# 活用しないもの
+\\include fix.depword
+#
+# 名詞
+\\include noun.depword
+\\include noun-variant.depword
+# 副詞
+\\include av.depword
+# 動詞
+\\include v.depword
+# 形容詞
+\\include a.depword
+# 形容動詞
+\\include ajv.depword
+#
+#
+@接続詞 "" Sy@ Sy@間投助詞
+# 誤変換のもとにしかならないので間投助詞は使わない
+#@間投助詞 "ね" "な" "さ" @
+@間投助詞 "" @
+@連体詞 "" St@
+#@終助詞 "か" "かい" "かしら" "な" "ぞ" "ぜ" "とも" "って" "の" "わ" "や" "よ" @ @セパレータ
+@開き括弧 "" @
+@閉じ括弧 "" @
+@単漢字 "" @
+#
+#

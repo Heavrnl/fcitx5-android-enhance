@@ -1,0 +1,34 @@
+* Anthy個人辞書ライブラリの使用方法の説明 *
+
+ライブラリのオプション	-lanthydic
+(もしくはpkg-configでanthyを指定する)
+インクルードファイル	anthy/dicutil.h
+			anthy/anthy.h (エンコーディングの定数のため)
+
+* データ型 *
+
+* 関数の概説 *
+初期化関数
+ anthy_dic_util_init               個人辞書ライブラリの初期化
+ anthy_dic_util_quit               個人辞書ライブラリの終了
+ anthy_dic_util_set_personality    パーソナリティの設定
+ anthy_dic_util_set_encoding       エンコーディングの設定
+単語の選択
+ anthy_priv_dic_select_first_entry 最初の単語の選択
+ anthy_priv_dic_select_next_entry  次の単語の選択
+ anthy_priv_dic_select_entry       (not implemented)
+単語の情報の取得
+ anthy_priv_dic_get_index          見出し語の取得
+ anthy_priv_dic_get_freq           頻度の取得
+ anthy_priv_dic_get_wtype          品詞の取得
+ anthy_priv_dic_get_word           単語の取得
+単語の登録
+ anthy_priv_dic_add_entry          単語の登録
+ anthy_priv_dic_delete             単語の削除
+その他
+ anthy_dic_search_words_file       単語の検索
+ anthy_dic_util_get_anthydir       (unstable API)
+
+* 各関数の説明 *
+void anthy_dic_util_init(void)
+void anthy_dic_util_quit(void)

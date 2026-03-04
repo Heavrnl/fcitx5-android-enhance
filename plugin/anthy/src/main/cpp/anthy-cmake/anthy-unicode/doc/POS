@@ -1,0 +1,148 @@
+Anthyの品詞分類について。
+
+
+Anthyでは品詞をwtype_tという型で扱う
+wtype_tは
+ *品詞(名詞、動詞、、)
+ *副品詞(名詞における地名、人名、、などの分類)
+ *副副品詞(人名の姓名、数字の位など)
+ *活用クラス(5段、上一、サ変、、)
+ *活用形(未然、連用、、)
+ *副活用形(品詞、活用形が同じものを接続で分類する)
+ *オプション(自立語かどうか？連体形が名詞化するか？など)
+の7つのパラメータを含んでいる。
+各パラメータはワイルドカードとして
+任意のものにマッチするものをとることができ、*であらわす。
+この7つ組の組み合わせのうち、いくつかは文字列による名前を
+持っており、文法の定義の時などに使われる。
+例
+ "名詞" -名詞-*-*-*-*-*-
+ "動詞未然形D" -動詞-*-*-*-未然形-デフォルト-
+品詞の比較にはオプションを除く6つのパラメータを比較して
+すべてのパラメータの対が等しい、もしくは比較の基準側がワイルドカード
+であるときに対象側は基準側に含まれる。
+
+
+include/wtype.hに CC_??として、活用のしかたを分類してある。
+活用表は最後の数文字を見て、語幹と活用形がわかればよいので、
+上一段と下一段は統合して扱う(本当はcannadicの都合)。
+ CC_NONE 無活用
+ CC_K5 か行5段
+ CC_C5 か行5段(行く or 逝く 「行った」という活用になる5段)
+ CC_G5 が行5段
+ CC_S5 さ行5段
+ CC_T5 た行5段
+ CC_N5 な行5段
+ CC_M5 ま行5段
+ CC_B5 ば行5段
+ CC_R5 ら行5段
+ CC_L5 ら行5段(命令形が 「イ」「いらっしゃい」「おっしゃい」「ござい」など)
+ CC_W5 わ行5段
+ CC_U5 乞う5段(「憩う」など、わ行とちがうのか？)
+ CC_KS1 上下1段
+ CC_KV か行変格
+ CC_SV さ行変格
+ CC_ZV さ行変格
+ CC_AJV 形容動詞
+ CC_A 形容詞
+ CC_A_U う音便の形容詞
+
+
+品詞(POS Part Of Speech)は以下のようなものが定義されている
+ POS_NONE 品詞不明
+ POS_NOUN (E)(entity) 体言(名詞、数詞、代名詞)
+ POS_PRT (P)(particle) 助詞
+ POS_XV (X)(auxiliary verb) 助動詞
+ POS_V (V)(verb)動詞
+ POS_A (A)(adjective)形容詞
+ POS_AJV (D)(adjective verb)形容動詞
+ POS_AV (B)(adverb)副詞
+ POS_ME (M)連体詞
+ POS_CONJ (C)(conjunction)接続詞
+ POS_IJ (I)(interjection) 感動詞
+ POS_PRE 一般名詞の接頭語
+ POS_SUC 一般名詞の接尾語
+ POS_INVAL
+
+
+副品詞
+ COS_NONE ワイルドカード
+ COS_CNPRE 地名の付属語
+ COS_NNPRE 数詞の付属語
+
+
+副副品詞
+ SCOS_NONE
+ SCOS_FAMNAME 氏
+ SCOS_FSTNAME 名
+ SCOS_T00 - SCOS_T39
+  32種類
+ SCOS_T40(D2T35)
+  動詞を名詞化させる接尾辞「(〜し)たて」
+ SCOS_T41(N2T35)
+  名詞であると同時に名詞の接尾辞「〜用」
+ SCOS_A0
+ SCOS_A1
+
+
+活用形
+ CT_NONE
+ CT_SYUSI
+ CT_MIZEN
+ CT_RENYOU
+ CT_RENTAI
+ CT_MEIREI
+ CT_HEAD 語幹(形容詞、形容動詞のみ)
+
+
+副活用形
+たとえば「動詞カ行5段未然形」は「書く」の場合には
+「書か(ない)」と「書こ(う)」の2つ存在して、
+これらを区別するために副活用形を定義する。
+接続の種類ごとに分類しており、ある活用形でもっとも
+一般的と思われるものはデフォルトとしてあつかう。
+動詞未然形の場合は
+ デフォルト(CST_DEFAULT) 5段 サ変 以外
+ 「う」へ接続する5段 (CST_V_MIZEN_U)
+ 「ず」へ接続する5段 (CST_V_MIZEN_ZU)
+ 「し」 サ変
+ 「せ」 サ変
+ 「さ」 サ変
+の6種に分類される。
+デフォルトとワイルドカード
+ CST_NONE
+ CST_DEFAULT
+動詞の未然形に対応するもの
+ CST_V_MIZEN_U 書こ う
+ CST_V_MIZEN_ZU せ ず
+ CST_V_MIZEN_SI し サ変
+ CST_V_MIZEN_SE せ サ変
+ CST_V_MIZEN_SA さ サ変
+ (CST_DEFAULT) サ変 5段以外の未然形
+動詞の連用形に対応するもの
+ CST_V_RENYOU_5 書き ます
+ CST_V_RENYOU_TA 書い た
+ CST_V_RENYOU_DA 死ん だ
+動詞の終止形に対応するもの
+「たべよ」 とかいった文語的な命令 上下1、サ、カ変
+ CST_MEIRE_
+形容詞連用形
+ CST_A_RENYOU_NA 白くない
+
+
+オプション
+ WF_NONE なにも無し
+ WF_INDEP 独立語
+ WF_MEISI 連用形が名詞化する動詞
+
+
+これらの他に、読みに対するフラグを用意している
+ F_NONE 
+ NF_FAMNAME
+ NF_FSTNAME
+ NF_UNSPECNAME
+ NF_NAME
+ NF_NUM
+ NF_CNAME
+ SF_JN
+ SF_NUM

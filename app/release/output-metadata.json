@@ -1,0 +1,65 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "org.fcitx.fcitx5.android",
+  "variantName": "release",
+  "elements": [
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "armeabi-v7a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 101,
+      "versionName": "v8-1-g1835973d",
+      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-armeabi-v7a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86_64"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 104,
+      "versionName": "v8-1-g1835973d",
+      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-x86_64-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "arm64-v8a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 102,
+      "versionName": "v8-1-g1835973d",
+      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-arm64-v8a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 103,
+      "versionName": "v8-1-g1835973d",
+      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-x86-release.apk"
+    }
+  ],
+  "elementType": "File",
+  "minSdkVersionForDexing": 23
+}

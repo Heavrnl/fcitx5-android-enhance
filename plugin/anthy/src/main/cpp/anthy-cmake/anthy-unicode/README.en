@@ -1,0 +1,27 @@
+Anthy is a library for Japanese text input.
+
+Anthy Unicode is another Anthy project forked from Anthy since Anthy is no
+longer maintained.
+I (Takao Fujiwara) contacted with Yusuke Tabata-san and we agreed that
+myself will maintain Anthy Unicode.
+
+Anthy Unicode's purposes are:
+1. Convert internal codes from EUC-JP to UTF-8
+2. Migrate the user fiels from $HOME/.anthy to $XDG_CONFIG_HOME/anthy
+3. Maintain new eras
+4. Enhance th word conversions
+
+If you wish to make kasumi to work with Anthy Unicode, Kasumi Unicode
+is available at https://github.com/fujiwarat/kasumi-unicode
+Kasumi Unicode can accesss $XDG_CONFIG_HOME/anthy and also supports GTK3.
+
+
+You can install this library by following usual commands
+
+ $ ./configure;make
+ # make install
+
+ shared libraries, utility commands, and grammer definition
+ files will be installed.
+
+To be written...

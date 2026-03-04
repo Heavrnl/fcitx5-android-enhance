@@ -1,0 +1,12 @@
+#To Be Done
+# See http://www.freedesktop.org/Software/pkgconfig
+prefix=@prefix@
+exec_prefix=@prefix@
+includedir=@includedir@/@PACKAGE@-1.0
+libdir=@libdir@
+
+Name: anthy
+Description: Japanese conversion engine
+Version: @VERSION@
+Cflags: -I${includedir}
+Libs: -L${libdir} -lanthy-unicode -lanthydic-unicode

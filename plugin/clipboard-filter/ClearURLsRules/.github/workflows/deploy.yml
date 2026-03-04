@@ -1,0 +1,64 @@
+name: Build, Test and Deploy Rules
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Install Dependencies
+        run: sudo apt-get install -y nodejs jsonlint
+      - name: Build
+        run: |
+          mkdir public
+          cp CNAME public/CNAME
+          cp data.min.json public/data.min.json
+          sha256sum public/data.min.json | awk '{print $1}' > public/rules.min.hash
+          node build_tools/minifyDataJSON.js "public/data.min.json" "public/data.minify.json"
+          sha256sum public/data.minify.json | awk '{print $1}' > public/rules.minify.hash
+      - name: Upload Rules Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-artifact
+          path: public
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Install Dependencies
+        run: sudo apt-get install -y nodejs jsonlint
+      - name: Download Rules Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: rules-artifact
+          path: public
+      - name: Test
+        run: |
+          jsonlint-php public/data.min.json
+          jsonlint-php public/data.minify.json
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@master
+      - name: Download Rules Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: rules-artifact
+          path: public
+      - name: Deploy to Github Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages

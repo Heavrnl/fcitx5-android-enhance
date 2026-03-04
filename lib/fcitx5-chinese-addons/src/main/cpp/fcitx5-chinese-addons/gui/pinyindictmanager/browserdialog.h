@@ -1,0 +1,42 @@
+/*
+ * SPDX-FileCopyrightText: 2013-2018 CSSlayer <wengxt@gmail.com>
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
+ */
+#ifndef _PINYINDICTMANAGER_BROWSERDIALOG_H_
+#define _PINYINDICTMANAGER_BROWSERDIALOG_H_
+
+#include "config.h"
+#include "ui_browserdialog.h"
+#include <QByteArray>
+#include <QDialog>
+#include <QMessageBox>
+#include <QString>
+#include <QUrl>
+#include <QWidget>
+
+namespace fcitx {
+
+class WebPage;
+
+class BrowserDialog : public QDialog, public Ui::BrowserDialog {
+    friend class WebPage;
+    Q_OBJECT
+public:
+    explicit BrowserDialog(QWidget *parent = nullptr);
+    virtual ~BrowserDialog();
+    const QUrl &url() const { return url_; }
+    const QString &name() const { return name_; }
+
+private:
+    bool linkClicked(const QUrl &url);
+    QString decodeName(const QByteArray &in);
+    QString name_;
+    QUrl url_;
+    WebPage *page_;
+};
+
+} // namespace fcitx
+
+#endif // _PINYINDICTMANAGER_BROWSERDIALOG_H_

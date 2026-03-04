@@ -1,0 +1,7 @@
+[InputMethod]
+Name=Jyutping
+Icon=fcitx-jyutping
+Label=粵
+LangCode=zh_HK
+Addon=jyutping
+Configurable=True

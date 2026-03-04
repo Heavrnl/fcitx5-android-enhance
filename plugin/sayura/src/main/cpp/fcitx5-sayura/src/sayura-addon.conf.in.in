@@ -1,0 +1,10 @@
+[Addon]
+Name=Sayura Sinhala Input Method For Fcitx
+Category=InputMethod
+Version=@PROJECT_VERSION@
+Library=libsayura
+Type=SharedLibrary
+OnDemand=True
+
+[Addon/Dependencies]
+0=core:@REQUIRED_FCITX_VERSION@

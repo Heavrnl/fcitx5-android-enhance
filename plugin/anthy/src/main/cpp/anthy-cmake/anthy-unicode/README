@@ -1,0 +1,106 @@
+This document is written in Japanese.
+please read README.en
+
+Anthy Unicode は Anthy がもはやメンテされていないため、Anthy から分岐した
+もう一つの Anthy プロジェクトです。
+私(Takao Fujiwara)は、Yusuke Tabata さんと連絡を取り、私が
+Anthy Unicode を管理することで合意しました。
+
+Anthy Unicode の目的は:
+1. 内部コードを EUC-JP から UTF-8 への変更
+2. ユーザーファイルを $HOME/.anthy から $XDG_CONFIG_HOME/anthy への移行
+3. 新たな和暦の管理
+4. 用語変換の向上
+
+霞(kasumi)を Anthy Unicode と動作させたい場合、Kasumi Unicode が利用可能です:
+https://github.com/fujiwarat/kasumi-unicode
+Kasumi Unicode は、$XDG_CONFIG_HOME/anthy にアクセスできますし、GTK3 も
+サポートしています。
+
+
+インストール(及びアンインストール)の方法はINSTALLをお読みください。
+
+******** 注意 ********
+*本ソフトウェアは無保証です
+
+******** Anthy (かな漢字変換エンジン) ********
+
+Linuxなどで使用されることを主な目的として開発された
+かな漢字変換エンジンです。
+
+このパッケージにはかな漢字変換エンジンのライブラリと
+emacs から使用するためのプログラム(doc/ELISPを見てください)、
+辞書管理ツールなどが含まれています。
+Anthyのライブラリを用いるアプリケーションとしては別配布の
+uim :多言語対応文字入力ライブラリ
+ http://uim.freedesktop.org/
+scim-anthy:
+ http://scim-imengine.sourceforge.jp/
+IMKit-anthy :Zaurus用input method
+ http://zaurus-ja.sourceforge.jp
+などがあります。
+
+お問い合わせは 田畑 yusuke@ofanim.net までどうぞ
+最新情報は http://anthy.sourceforge.jp/ で取得できます。
+
+
+Anthyで使用する辞書は現在に至るまで、Canna, Wnn, SKKなどの
+フリーな日本語入力システムの製作者/愛用者等によって
+メンテナンスされてきたものであり、それらの人々に感謝します。
+特に、alt-cannadicをメンテナンスされている大泉氏、
+cannadicをメンテナンスされているすぎもと氏に感謝します。
+
+*辞書 alt-cannadic http://vagus.seesaa.net を同梱しています．
+ 開発者の大泉さんに感謝します
+*辞書 cannadic http://cannadic.oucrc.org/ を同梱していました．
+ 開発者のすぎもとさんに感謝します
+*Anthyの変換効率の低さを辞書の量／質／構造が原因であると短絡的に
+ 解釈される人がいますが，現時点のAnthyの性能はそれ以前に変換の
+ アルゴリズムに問題がある状況であると認識しています．
+ 作者は常に変換のアルゴリズムを練ることが必要と感じています．
+*本ソフトウェアはGoogle Summer of Code 2006の成果を
+ 利用しています。
+*本ソフトウェアの多くの部分は情報処理振興事業協会(IPA)の
+ 「未踏ソフトウェア創造事業(2001,2005年度)」の資金援助をうけて
+ 開発を行いました。
+*開発に必要な技術やアドバイスの多くをKMC(京大マイコンクラブ)の
+ 仲間から得ています。
+
+******** Files and Directories ********
+
+README		このファイル
+INSTALL		インストールのやりかた
+DIARY		開発日記(?)
+COPYING		本ソフトウェアの再配布や改変の条件について書いてあります
+AUTHORS		開発者や協力者のみなさまです
+ChangeLog	重要な変更があれば書きます
+NEWS		ユーザにわかるニュースがあれば書いていきます
+alt-cannadic/	alt-cannadicの配布物を同梱しています
+doc/		ドキュメント類
+calctrans/      文節クラスの接続行列を計算するコード
+depgraph/	付属語グラフ
+anthy/		各モジュールで共有されるヘッダや
+		インストールされるヘッダを入れる
+src-main/	変換エンジンのコアの部分
+src-splitter/	文字列から文節の境界を検出する部分
+src-diclib/	辞書管理をするライブラリ、辞書の他に
+		設定の処理もある
+src-worddic/    単語辞書にアクセスするためのコード
+src-ordering/	候補の順序の決定、学習を行う
+src-util/	ユーザ用の辞書管理用コマンド
+mkworddic/      単語辞書作成のためのコード
+mkanthydic/	各種の辞書をリンクするためのコード
+test/		変換エンジンの性能のテストを行うためのプログラムなど
+
+
+******** SECURITY ISSUES ********
+*Anthy自体はバグによる例外はあるかもしれませんが、
+ 学習のデータなどのプライバシーはファイルシステムが安全であるならば
+ 他のユーザから保護されます。
+ +一般的なファイルシステムは管理者に対して安全ではありません。
+ +暗号化されていないNFSなどは盗聴に対して安全ではありません。
+
+*本ソフトウェアはセキュリティやプライバシの保護には注意しています
+ (IPAの資金援助も受けてますので)。Anthyのライブラリを使用される
+ 方もその点に留意してください。また、問題があれば遠慮なく
+ 指摘してください。

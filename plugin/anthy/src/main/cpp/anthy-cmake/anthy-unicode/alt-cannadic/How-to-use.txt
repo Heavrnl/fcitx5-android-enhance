@@ -1,0 +1,155 @@
+[ 使い方 ]
+※ canna での使い方は下の方にあります。
+
+<< Anthy >>
+※ 以下の内容はすでに古くなっています。
+
+・Anthy のソースとそれをビルドする環境が必要ですので、まず
+　それらを準備してください。
+
+1.)「gcanna.ctd」「gcannaf.ctd」「gtankan.ctd」の3つ
+　 を anthy ソース内の cannadic/ 以下にコピー
+
+2.)base.t, katakana.t, placename.t は、誤りを修正した上で
+   gcanna.ctd に取り込んであるので、使われないよう外します。
+  anthy ソース内の
+
+　　mkworddic/dict.args.in
+　　mkworddic/Makefile.in
+
+　の2つのファイルを以下のように修正。
+    ※古いバージョンでは「mkworddic」ではなく、「mkanthydic」
+      にあります
+
+　  ※すでに ./configure してある場合は、生成された
+　    　mkanthydic/dict.args
+　  　  mkanthydic/Makefile
+　　  の方を修正してください。
+
+ < dict.args.in >
+  (中略)
+  # set_exclude_wtypes #CN #CNS    ←コメントアウト
+  read @top_srcdir@/cannadic/gcanna.ctd
+  # clear_exclude_wtypes           ←コメントアウト
+  #
+  read @top_srcdir@/cannadic/gcannaf.ctd
+  read @top_srcdir@/cannadic/gtankan.ctd     ←追加
+  # read @top_srcdir@/mkanthydic/katakana.t  ←コメントアウト
+  read @top_srcdir@/mkanthydic/adjust.t
+  read @top_srcdir@/mkanthydic/name.t
+  read @top_srcdir@/mkanthydic/compound.t
+  read @top_srcdir@/mkanthydic/extra.t
+  # read @top_srcdir@/mkanthydic/base.t       ←コメントアウト
+  # read @top_srcdir@/mkanthydic/placename.t  ←コメントアウト
+  # this command will make reverse dictionary
+  (中略)
+
+ < Makefile.in >
+    ※「CAN」で検索をかけると早いです
+  EXTRA_DICS から base.t, katakana.t, placename.t
+  の３つを削除
+　CANNADIC_DIST に「gtankan.ctd」を追加
+
+  例:
+    EXTRA_DICS = extra.t compound.t name.t adjust.t
+    ZIPCODE_DICT = zipcode.t
+    CANNADIC_DIST = gcanna.ctd gcannaf.ctd gtankan.ctd
+
+あとは通常通りの手順で　Anthy をビルド＆インストール。
+
+
+すでに Anthy がインストールされている場合は、少々乱暴ですが、
+「make までを行い、root 権限で mkanthydic/anthy.dic を
+/usr/share/anthy/ に mv し、ログインし直す」というのでもいい
+と思います(つまり、Anthy 全体をインストールし直すのではなく、
+辞書だけ置き換える)。
+
+一度 make してあって辞書だけ作り直したい場合は、
+
+  mkanthydic/anthy.dic
+  mkworddic/anthy.wdic
+
+の二つを消してから make して下さい。
+
+  mkworddic/anthy.wdic + depgraph/anthy.dep
+                      ↓
+              mkanthydic/anthy.dic
+
+という風になっています。
+
+<< Canna >>
+
+・cannadic と同じですので、詳しくは orig-README.ja をご覧
+　下さい。ここでは簡単に説明します。
+
+1.)このファイルのあるディレクトリで、
+     $ make maindic
+   とすると、gcanna.ctd のバイナリファイルが生成されます。
+
+2.)cannaserver を止めます
+     $ su
+     # /etc/init.d/canna stop
+
+3.) 1.)で生成された gcanna.cbd,gcanna.cld 及び、gcannaf.ctd
+   gtankan.ctd の4つのファイルを、Canna の辞書ディレクトリに
+   インストール(辞書ディレクトリのパスは環境によって違うので、
+   適宜変更して下さい)。
+     # install -o bin -g bin -m 0664 gcanna.c[bl]d /var/lib/canna/dic/canna/
+
+    ※単純に cp して chown, chmod でももちろん可
+
+4.)Canna の辞書ディレクトリにある dics.dir に以下の行を追加
+
+     gcanna.cbd(gcanna.mwd) -gcanna---
+     gcanna.cld(gcanna.mwd) -gcanna---
+     gcannaf.ctd(.swd) -gcannaf---
+     gtankan.ctd(.swd) -gtankan---
+
+    ※dics.dir は読み取り専用になっているので、書き込み可に
+      して編集するか、vi なら「:w!」で強制保存
+
+5.)ctrl+d してユーザ権限に戻り、~/.canna を以下のように編集
+
+    (use-dictionary
+     "gcanna"   ; ←自立語辞書
+     "gcannaf"  ; ←付属語辞書
+     "gtankan"  ; ←単漢字辞書
+     ;;"iroha"  ; ←上位互換なのでこの行をコメントアウト
+     "fuzokugo"
+     "hojomwd"
+     "hojoswd"
+     :bushu "bushu"
+     :user "user"
+     )
+
+    ※~/.canna はなければ作成。/var/lib/canna/sample 以下に
+      雛型があります(パスは環境によって異なります)
+
+6.)cannaserver 起動
+     $ su
+     # /etc/init.d/canna start
+
+-----------------------------------
+
+ ※※ 注意 ※※
+   gtankan は普段は"アンマウント"してお使い下さい。理由は、
+
+　1.) 単漢字辞書を一から作り直したが、その際、訓読み等を送
+　   り仮名ありで登録した( cannadic は送り仮名なし)
+　     例　cannadic:     あたら #KJ 新
+　         alt-cannadic: あたらしい #KJ 新
+
+　2.) すると、Canna は連文節変換時も単漢字を候補に含め、
+　   しかも最長一致なので、単漢字なのに先頭の候補になって
+　   しまう。
+　     例　「あたらしいほんを」→「新本を」
+　         「ここにきめる」→「于决」
+　     ※ Anthy は単漢字は無条件に後ろの方に回されるらしいの
+         で、このようなことはない
+
+　3.) これを回避するためには、単漢字部分を別にして、普段は
+　   アンマウントしておき、必要な時にマウントするという面倒
+　   な方法しかない(逆に、単漢字が出てこないので、候補ウィン
+     ドウがスッキリするというメリットもある)
+
+

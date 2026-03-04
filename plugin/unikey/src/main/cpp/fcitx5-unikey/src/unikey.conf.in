@@ -1,0 +1,6 @@
+[InputMethod]
+Name=Unikey
+Icon=fcitx-unikey
+LangCode=vi
+Addon=unikey
+Configurable=True

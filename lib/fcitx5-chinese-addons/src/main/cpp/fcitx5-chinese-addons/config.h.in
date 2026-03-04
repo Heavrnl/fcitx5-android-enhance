@@ -1,0 +1,20 @@
+/*
+ * SPDX-FileCopyrightText: 2017-2017 CSSlayer <wengxt@gmail.com>
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ *
+ */
+#ifndef _FCITX5_CHINESE_ADDONS_CONFIG_H_IN_
+#define _FCITX5_CHINESE_ADDONS_CONFIG_H_IN_
+
+#cmakedefine ENABLE_OPENCC
+#cmakedefine ENABLE_BROWSER
+#cmakedefine HAS_BOOST_JSON
+#cmakedefine OPENCC_PREFIX "@OPENCC_PREFIX@"
+#define LIBIME_INSTALL_PKGDATADIR "@LIBIME_INSTALL_PKGDATADIR@"
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#endif // _FCITX5_CHINESE_ADDONS_CONFIG_H_IN_

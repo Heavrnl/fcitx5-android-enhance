@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component type="addon">
+  <id>org.fcitx.Fcitx5.Addon.Jyutping</id>
+  <extends>org.fcitx.Fcitx5</extends>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1+</project_license>
+  <name>Jyutping</name>
+  <summary>Jyutping input method</summary>
+  <url type="homepage">https://fcitx-im.org</url>
+  <url type="bugtracker">https://github.com/fcitx/libime-jyutping/issues</url>
+  <project_group>Fcitx</project_group>
+  <releases>
+    <release version="1.0.15" date="2025-10-16"/>
+    <release version="1.0.14" date="2025-06-15"/>
+    <release version="1.0.13" date="2025-01-22"/>
+    <release version="1.0.12" date="2024-05-30"/>
+    <release version="1.0.11" date="2024-04-22"/>
+    <release version="1.0.10" date="2024-02-28"/>
+    <release version="1.0.9" date="2024-01-02"/>
+    <release version="1.0.8" date="2023-11-01"/>
+    <release version="1.0.7" date="2023-09-29"/>
+    <release version="1.0.6" date="2023-03-10"/>
+    <release version="1.0.5" date="2022-11-28"/>
+    <release version="1.0.4" date="2022-05-22"/>
+    <release version="1.0.3" date="2021-08-29"/>
+    <release version="1.0.2" date="2021-01-11"/>
+    <release version="1.0.1" date="2020-12-03"/>
+    <release version="1.0.0" date="2020-10-30"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>
+

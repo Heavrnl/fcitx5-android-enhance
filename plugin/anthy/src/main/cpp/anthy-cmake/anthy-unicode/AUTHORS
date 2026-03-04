@@ -1,0 +1,55 @@
+Anthy Unicode maintainer:
+Takao Fujiwara <takao.fujiwara1@gmail.com>
+
+Anthy Authors:
+かな漢字変換エンジンAnthy(アンシー)は
+KMC(京大マイコンクラブ)のメンバーの一部によって構成される
+Project Heke のメンバー達によって開発を開始し、その後は
+みなさまの協力も得て開発を行ってきました。
+
+SPECIAL THANKS
+*辞書のCannadicの開発者であるSUGIMOTOさん(http://cannadic.oucrc.org/)
+*Cannadicをベースとしてalt-cannadicを開発している大泉さん
+*Google Summer of Codeで有用なコードを書いてくださった東山さん、花岡さん
+ この機会を与えてくださったGoogle, FSIJ
+*実家でのコーディングの時にいつも側にいてくれた(故)トラ猫ニーヤさん
+*MLやファイルのupload場所を提供してくださる sourceforge.jp
+*開発を進めるために資金的援助をしてくださった
+ IPA 情報処理振興事業協会、
+*2001年度にIPAの未踏ソフトウェアにプロジェクトを採択してくださり，
+ その後も開発に協力してくださる
+ g新部裕さん
+*例文を送ってくださるIidaさん
+*デバッグやテストをしてくださったり、アイディアを出してくださった
+ 春山さん(http://www.unixuser.org/~haruyama/)
+*北斗の拳辞書の開発者であるri(李)さん
+*辞書検索のハッシュのコードを書いたrijin(@kmc)さん
+*utenaのIPv6パッチを作成してくださったomoteさん(http://utyuuzin.net/)
+*leimの実装に関してアドバイス、およびパッチをくださった
+ Tetsuo Tsukamoto さん
+*いつもテストに参加してくださるiyokan(@kmc)さん
+*利用してくださり，ありがたいコメントをくださる湯浅教授(京都大学情報学研究科)
+*Linux Zaurus用IMKit-anthy(http://zaurus-ja.sourceforge.jp)の開発を
+ 通してバグレポートやコードを書いてくださるヤマケンさん
+*有用なコメントやパッチをくださるlogin:Penguinさん
+*anthy.elのXEmacs対応を行ってくださった Norio Suzuki <suzuki@sanpobu.net>さん
+*uimの開発を引き取ってくださり、私をAnthyの開発に集中させてくださる 
+ tkngさん <tkng@xem.jp>
+*コードの一部をリファクタリングしてシンプルにしてくださるoxy(吉田@kmc)さん
+*いつもRPMを作ってくださるyuheiさん
+*Mandriva(旧Mandrake)の文字入力システムの改善に取り組んでいらっしゃるUTUMIさん
+*いつもテストして貴重なコメントをくださる渡辺(nosuke)さん
+*anthy-dic.elをXEmacsで動くようにしてくださった Mike Fabianさん
+*anthy-dic.elでリージョンから単語を拾えるようにしてくださった梅本さん
+*複合語辞書の作成に協力してくださった岡本さん(henkma)と(株)グッデイさん
+*地名辞書を作成してくださった若山さん(Shirou Wakayama)
+*IRCで単語の不足を指摘してくださるゆきち(Yukichi)さん
+*郵便番号辞書を提供してくださった田郷さん(tagoh)
+*辞書ツールkasumi作者の中本さん
+*例文を送ってくださったIida Masanariさん
+
+上記のうちにはプログラムの構造などの変化によってソースコード上から
+消えたものもありますが、プロジェクトに協力していただいたという点で、
+上記のすべての皆様に感謝します。
+また、その他にも直接的or間接的に協力してくださった方は多数おり、同じく
+感謝しています。

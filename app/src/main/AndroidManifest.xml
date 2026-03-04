@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- remove unused permission from AppCompat -->
+    <permission
+        android:name="${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
+
+    <uses-permission
+        android:name="${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        tools:node="remove" />
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- SyncClipboard needs network access -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Screenshot detection requires media access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- remove intent queries merged from library manifest (namely Android-Image-Cropper) -->
+    <queries tools:node="removeAll" />
+
+    <queries>
+        <intent>
+            <action android:name="${applicationId}.plugin.MANIFEST" />
+        </intent>
+        <intent>
+            <action android:name="android.view.InputMethod" />
+        </intent>
+    </queries>
+
+    <permission
+        android:name="${applicationId}.permission.IPC"
+        android:protectionLevel="signature" />
+
+    <permission
+        android:name="${applicationId}.permission.PLUGIN"
+        android:protectionLevel="signature" />
+
+    <uses-permission android:name="${applicationId}.permission.PLUGIN" />
+
+    <application
+        android:name=".FcitxApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/full_backup_content"
+        android:icon="@mipmap/app_icon"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/app_icon_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.FcitxAppTheme"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="33">
+        <activity
+            android:name=".ui.setup.SetupActivity"
+            android:exported="false"
+            android:launchMode="singleTask" />
+        <activity
+            android:name=".ui.main.LogActivity"
+            android:directBootAware="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:parentActivityName=".ui.main.MainActivity" />
+        <activity
+            android:name=".ui.main.settings.theme.CustomThemeActivity"
+            android:configChanges="orientation|screenSize"
+            android:exported="false"
+            android:label="@string/edit_theme" />
+        <activity
+            android:name=".ui.main.CropImageActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.main.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+                <data android:host="*" />
+                <!--
+                  there has to be so many segments:
+                  https://stackoverflow.com/questions/3400072/pathpattern-to-match-file-extension/8599921#8599921
+                -->
+                <data android:pathPattern=".*\\.dict" />
+                <data android:pathPattern=".*\\..*\\.dict" />
+                <data android:pathPattern=".*\\..*\\..*\\.dict" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.dict" />
+                <data android:pathPattern=".*\\.scel" />
+                <data android:pathPattern=".*\\..*\\.scel" />
+                <data android:pathPattern=".*\\..*\\..*\\.scel" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.scel" />
+                <data android:pathPattern=".*\\.txt" />
+                <data android:pathPattern=".*\\..*\\.txt" />
+                <data android:pathPattern=".*\\..*\\..*\\.txt" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.txt" />
+                <!-- pathSuffix works on API 31+ -->
+                <data android:pathSuffix=".dict" />
+                <data android:pathSuffix=".scel" />
+                <data android:pathSuffix=".txt" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.main.ClipboardEditActivity"
+            android:autoRemoveFromRecents="true"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:label="@string/edit_clipboard"
+            android:launchMode="singleInstance"
+            android:taskAffinity=".ui.main.ClipboardEditActivity"
+            android:theme="@style/Theme.DialogTheme"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustPan" />
+
+        <activity
+            android:name=".input.quickphrase.ui.EditPhraseActivity"
+            android:autoRemoveFromRecents="true"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=".input.quickphrase.ui.EditPhraseActivity"
+            android:theme="@style/Theme.DialogTheme"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustPan" />
+
+        <activity
+            android:name=".input.quickphrase.ui.EditCategoryActivity"
+            android:autoRemoveFromRecents="true"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=".input.quickphrase.ui.EditCategoryActivity"
+            android:theme="@style/Theme.DialogTheme"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustPan" />
+
+        <service
+            android:name=".input.FcitxInputMethodService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/input_method" />
+        </service>
+
+        <service
+            android:name=".FcitxRemoteService"
+            android:exported="true"
+            android:permission="${applicationId}.permission.IPC"
+            tools:ignore="SystemPermissionTypo">
+            <intent-filter>
+                <action android:name="${applicationId}.IPC" />
+            </intent-filter>
+        </service>
+
+        <!-- Verification Code Notification Listener -->
+        <service
+            android:name=".data.verification.VerificationCodeNotificationListener"
+            android:exported="true"
+            android:label="@string/verification_code"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name=".provider.FcitxDataProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+
+        <!-- FileProvider for sharing clipboard images -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_provider_paths" />
+        </provider>
+
+        <!-- remove unneeded components from com.canhub.cropper -->
+        <!--suppress DeprecatedClassUsageInspection -->
+        <activity
+            android:name="com.canhub.cropper.CropImageActivity"
+            tools:node="remove" />
+
+        <provider
+            android:name="com.canhub.cropper.CropFileProvider"
+            android:authorities="${applicationId}.cropper.fileprovider"
+            tools:node="remove" />
+
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:directBootAware="true"
+            android:exported="false"
+            tools:node="merge">
+            <!-- do not inject splitties AppCompat -->
+            <meta-data
+                android:name="splitties.views.dsl.appcompat.experimental.AppCompatViewInstantiatorInjecter"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+
+</manifest>
