@@ -1,6 +1,6 @@
 # fcitx5-android-enhance
 
-基于 [fcitx5-android](https://github.com/fcitx5-android/fcitx5-android) 的功能增强分支。
+基于 [fcitx5-android](https://github.com/fcitx5-android/fcitx5-android) 的二次修改版本。
 
 ## ✨ 新增功能
 * **核心增强**：跨设备剪切板同步、验证码自动提取、快捷短语。
