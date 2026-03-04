@@ -5,7 +5,7 @@
 - **跨设备剪切板同步**：需配合 [SyncClipboard](https://github.com/Jeric-X/SyncClipboard) 使用
 - **验证码自动提取**
 - **快捷短语**
-- **语音输入**：基于 Qwen3-ASR，长按 `空格` 或从 `工具栏` 触发
+- **语音输入**：基于 qwen3-asr-flash-realtime，长按 `空格` 或从 `工具栏` 触发
 - **键盘手写**
 - **键盘调节**
 - **单手模式**
