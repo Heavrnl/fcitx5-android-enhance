@@ -17,4 +17,4 @@
 
 ### 语音配置说明
 - **模型**：Qwen3-ASR-Flash-Realtime（[API Key 获取](https://modelstudio.console.alibabacloud.com/ap-southeast-1/?tab=dashboard#/api-key)）
-- **费用**：国际站 ~$0.324/h (免 10h) | 国内站 ~$0.1692/h
+- **费用**：国际站 ~$0.324/h (免费 10h) | 国内站 ~$0.1692/h
