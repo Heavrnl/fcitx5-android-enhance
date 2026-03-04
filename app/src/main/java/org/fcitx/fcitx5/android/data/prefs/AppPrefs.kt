@@ -201,12 +201,13 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             keyboardHeightPercentLandscape = secondary
         }
 
+        // 左侧 padding（复用原 key 以保持向后兼容）
         val keyboardSidePadding: ManagedPreference.PInt
         val keyboardSidePaddingLandscape: ManagedPreference.PInt
 
         init {
             val (primary, secondary) = twinInt(
-                R.string.keyboard_side_padding,
+                R.string.keyboard_left_padding,
                 R.string.portrait,
                 "keyboard_side_padding",
                 0,
@@ -219,6 +220,27 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             )
             keyboardSidePadding = primary
             keyboardSidePaddingLandscape = secondary
+        }
+
+        // 右侧 padding（新增）
+        val keyboardSidePaddingRight: ManagedPreference.PInt
+        val keyboardSidePaddingRightLandscape: ManagedPreference.PInt
+
+        init {
+            val (primary, secondary) = twinInt(
+                R.string.keyboard_right_padding,
+                R.string.portrait,
+                "keyboard_side_padding_right",
+                0,
+                R.string.landscape,
+                "keyboard_side_padding_right_landscape",
+                0,
+                0,
+                300,
+                "dp"
+            )
+            keyboardSidePaddingRight = primary
+            keyboardSidePaddingRightLandscape = secondary
         }
 
         val keyboardBottomPadding: ManagedPreference.PInt

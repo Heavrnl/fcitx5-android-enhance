@@ -36,6 +36,8 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
         get() = if (isLandscape) keyboardPrefs.keyboardHeightPercentLandscape else keyboardPrefs.keyboardHeightPercent
     private val sidePaddingPref
         get() = if (isLandscape) keyboardPrefs.keyboardSidePaddingLandscape else keyboardPrefs.keyboardSidePadding
+    private val rightPaddingPref
+        get() = if (isLandscape) keyboardPrefs.keyboardSidePaddingRightLandscape else keyboardPrefs.keyboardSidePaddingRight
     private val bottomPaddingPref
         get() = if (isLandscape) keyboardPrefs.keyboardBottomPaddingLandscape else keyboardPrefs.keyboardBottomPadding
 
@@ -127,6 +129,7 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
                 setOnClickListener {
                     heightPercentPref.sharedPreferences.edit { remove(heightPercentPref.key) }
                     sidePaddingPref.sharedPreferences.edit { remove(sidePaddingPref.key) }
+                    rightPaddingPref.sharedPreferences.edit { remove(rightPaddingPref.key) }
                     bottomPaddingPref.sharedPreferences.edit { remove(bottomPaddingPref.key) }
                 }
             }
@@ -142,23 +145,44 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
                 var startY = 0f
                 var startX = 0f
                 var startBottomPadding = 0
-                var startSidePadding = 0
+                var startLeftPadding = 0
+                var startRightPadding = 0
                 setOnTouchListener { _, event ->
                     when (event.action) {
                         MotionEvent.ACTION_DOWN -> {
                             startY = event.rawY
                             startX = event.rawX
                             startBottomPadding = bottomPaddingPref.getValue()
-                            startSidePadding = sidePaddingPref.getValue()
+                            startLeftPadding = sidePaddingPref.getValue()
+                            startRightPadding = rightPaddingPref.getValue()
                             true
                         }
                         MotionEvent.ACTION_MOVE -> {
+                            // 垂直移动
                             val deltaY = event.rawY - startY
                             val deltaYDp = px2dp(deltaY)
-                            
                             val proposedPadding = startBottomPadding - deltaYDp
                             val newBottomPadding = min(px2dp(maxBottomPadding.toFloat()), max(0, proposedPadding))
                             bottomPaddingPref.setValue(newBottomPadding)
+
+                            // 水平移动：同时等量调整左右 padding，保持总和不变以维持键盘宽度
+                            val deltaX = event.rawX - startX
+                            val deltaXDp = px2dp(deltaX)
+                            val totalPadding = startLeftPadding + startRightPadding
+                            // 向右移动：左侧 padding 增加，右侧 padding 减少
+                            var newLeft = startLeftPadding + deltaXDp
+                            var newRight = startRightPadding - deltaXDp
+                            // clamp 到 [0, totalPadding]，保持总和不变
+                            if (newLeft < 0) {
+                                newLeft = 0
+                                newRight = totalPadding
+                            }
+                            if (newRight < 0) {
+                                newRight = 0
+                                newLeft = totalPadding
+                            }
+                            sidePaddingPref.setValue(newLeft)
+                            rightPaddingPref.setValue(newRight)
                             true
                         }
                         else -> false
@@ -191,10 +215,7 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
             addView(btnMove, bigBtnParams()) // 中间按钮明显较大
             addView(btnDone, smallBtnParams())
         }
-        
-        frameLayout.addView(btnGroup, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER
-        })
+
 
         fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 
@@ -241,23 +262,24 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
         val startDragContainer = FrameLayout(context)
         val startDrag = createDragHandle(true)
         var startXLeft = 0f
-        var startSidePaddingLeft = 0
+        var startLeftPadding = 0
+        var startRightPaddingForLeft = 0 // 记录拖拽开始时的右侧 padding，用于计算最大值
         startDragContainer.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startXLeft = event.rawX
-                    startSidePaddingLeft = sidePaddingPref.getValue()
+                    startLeftPadding = sidePaddingPref.getValue()
+                    startRightPaddingForLeft = rightPaddingPref.getValue()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val deltaX = event.rawX - startXLeft
                     val deltaDp = px2dp(deltaX)
-                    // Side Padding 过大意味着键盘越窄，用 maxSidePadding 限制其最小宽度
-                    val maxSidePaddingDp = px2dp(maxSidePadding.toFloat())
-                    val newPadding = min(maxSidePaddingDp, max(0, startSidePaddingLeft + deltaDp))
-                    if (newPadding in 0..maxSidePaddingDp) {
-                        sidePaddingPref.setValue(newPadding)
-                    }
+                    // 左侧拖拽只影响左侧 padding
+                    val maxTotalPaddingDp = px2dp(maxSidePadding.toFloat() * 2)
+                    val maxLeftDp = maxTotalPaddingDp - startRightPaddingForLeft
+                    val newPadding = min(maxLeftDp, max(0, startLeftPadding + deltaDp))
+                    sidePaddingPref.setValue(newPadding)
                     true
                 }
                 else -> false
@@ -274,23 +296,24 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
         val endDragContainer = FrameLayout(context)
         val endDrag = createDragHandle(true)
         var startXRight = 0f
-        var startSidePaddingRight = 0
+        var startRightPadding = 0
+        var startLeftPaddingForRight = 0 // 记录拖拽开始时的左侧 padding，用于计算最大值
         endDragContainer.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startXRight = event.rawX
-                    startSidePaddingRight = sidePaddingPref.getValue()
+                    startRightPadding = rightPaddingPref.getValue()
+                    startLeftPaddingForRight = sidePaddingPref.getValue()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val deltaX = event.rawX - startXRight
-                    // 从右边拖拽，往左（负 X）意味着放大边距
+                    // 右侧拖拽只影响右侧 padding，往左拖（负 deltaX）意味着 padding 增大
                     val deltaDp = px2dp(-deltaX)
-                    val maxSidePaddingDp = px2dp(maxSidePadding.toFloat())
-                    val newPadding = min(maxSidePaddingDp, max(0, startSidePaddingRight + deltaDp))
-                    if (newPadding in 0..maxSidePaddingDp) {
-                        sidePaddingPref.setValue(newPadding)
-                    }
+                    val maxTotalPaddingDp = px2dp(maxSidePadding.toFloat() * 2)
+                    val maxRightDp = maxTotalPaddingDp - startLeftPaddingForRight
+                    val newPadding = min(maxRightDp, max(0, startRightPadding + deltaDp))
+                    rightPaddingPref.setValue(newPadding)
                     true
                 }
                 else -> false
@@ -301,6 +324,11 @@ class KeyboardResizeWindow : InputWindow.SimpleInputWindow<KeyboardResizeWindow>
         }
         frameLayout.addView(endDragContainer, FrameLayout.LayoutParams(dp(48), ViewGroup.LayoutParams.MATCH_PARENT).apply {
             gravity = Gravity.END
+        })
+
+        // 按钮组最后添加，确保 z-order 最高，点击优先级高于拖拽 handle
+        frameLayout.addView(btnGroup, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER
         })
 
         return frameLayout

@@ -157,6 +157,8 @@ class InputView(
     private val keyboardHeightPercentLandscape = keyboardPrefs.keyboardHeightPercentLandscape
     private val keyboardSidePadding = keyboardPrefs.keyboardSidePadding
     private val keyboardSidePaddingLandscape = keyboardPrefs.keyboardSidePaddingLandscape
+    private val keyboardSidePaddingRight = keyboardPrefs.keyboardSidePaddingRight
+    private val keyboardSidePaddingRightLandscape = keyboardPrefs.keyboardSidePaddingRightLandscape
     private val keyboardBottomPadding = keyboardPrefs.keyboardBottomPadding
     private val keyboardBottomPaddingLandscape = keyboardPrefs.keyboardBottomPaddingLandscape
 
@@ -165,6 +167,8 @@ class InputView(
         keyboardHeightPercentLandscape,
         keyboardSidePadding,
         keyboardSidePaddingLandscape,
+        keyboardSidePaddingRight,
+        keyboardSidePaddingRightLandscape,
         keyboardBottomPadding,
         keyboardBottomPaddingLandscape,
     )
@@ -178,11 +182,22 @@ class InputView(
             return resources.displayMetrics.heightPixels * percent / 100
         }
 
-    private val keyboardSidePaddingPx: Int
+    // 左侧 padding（复用原 sidePadding）
+    private val keyboardLeftPaddingPx: Int
         get() {
             val value = when (resources.configuration.orientation) {
                 Configuration.ORIENTATION_LANDSCAPE -> keyboardSidePaddingLandscape
                 else -> keyboardSidePadding
+            }.getValue()
+            return dp(value)
+        }
+
+    // 右侧 padding
+    private val keyboardRightPaddingPx: Int
+        get() {
+            val value = when (resources.configuration.orientation) {
+                Configuration.ORIENTATION_LANDSCAPE -> keyboardSidePaddingRightLandscape
+                else -> keyboardSidePaddingRight
             }.getValue()
             return dp(value)
         }
@@ -296,9 +311,10 @@ class InputView(
         bottomPaddingSpace.updateLayoutParams {
             height = keyboardBottomPaddingPx
         }
-        val sidePadding = keyboardSidePaddingPx
-        if (sidePadding == 0) {
-            // hide side padding space views when unnecessary
+        val leftPadding = keyboardLeftPaddingPx
+        val rightPadding = keyboardRightPaddingPx
+        if (leftPadding == 0 && rightPadding == 0) {
+            // 两侧都无 padding，隐藏 space view
             leftPaddingSpace.visibility = GONE
             rightPaddingSpace.visibility = GONE
             windowManager.view.updateLayoutParams<LayoutParams> {
@@ -308,23 +324,42 @@ class InputView(
                 endOfParent()
             }
         } else {
-            leftPaddingSpace.visibility = VISIBLE
-            rightPaddingSpace.visibility = VISIBLE
-            leftPaddingSpace.updateLayoutParams {
-                width = sidePadding
+            // 分别设置左右 padding
+            if (leftPadding > 0) {
+                leftPaddingSpace.visibility = VISIBLE
+                leftPaddingSpace.updateLayoutParams {
+                    width = leftPadding
+                }
+            } else {
+                leftPaddingSpace.visibility = GONE
             }
-            rightPaddingSpace.updateLayoutParams {
-                width = sidePadding
+            if (rightPadding > 0) {
+                rightPaddingSpace.visibility = VISIBLE
+                rightPaddingSpace.updateLayoutParams {
+                    width = rightPadding
+                }
+            } else {
+                rightPaddingSpace.visibility = GONE
             }
             windowManager.view.updateLayoutParams<LayoutParams> {
-                startToStart = unset
-                endToEnd = unset
-                startToEndOf(leftPaddingSpace)
-                endToStartOf(rightPaddingSpace)
+                if (leftPadding > 0) {
+                    startToStart = unset
+                    startToEndOf(leftPaddingSpace)
+                } else {
+                    startToEnd = unset
+                    startOfParent()
+                }
+                if (rightPadding > 0) {
+                    endToEnd = unset
+                    endToStartOf(rightPaddingSpace)
+                } else {
+                    endToStart = unset
+                    endOfParent()
+                }
             }
         }
-        preedit.ui.root.setPadding(sidePadding, 0, sidePadding, 0)
-        kawaiiBar.view.setPadding(sidePadding, 0, sidePadding, 0)
+        preedit.ui.root.setPadding(leftPadding, 0, rightPadding, 0)
+        kawaiiBar.view.setPadding(leftPadding, 0, rightPadding, 0)
     }
 
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {

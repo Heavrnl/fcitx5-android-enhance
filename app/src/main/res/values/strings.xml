@@ -158,7 +158,8 @@
     <string name="portrait">Portrait</string>
     <string name="landscape">Landscape</string>
     <string name="keyboard_bottom_padding">Keyboard bottom padding</string>
-    <string name="keyboard_side_padding">Keyboard side padding</string>
+    <string name="keyboard_left_padding">Keyboard left padding</string>
+    <string name="keyboard_right_padding">Keyboard right padding</string>
     <string name="clipboard_suggestion">Show clipboard suggestions</string>
     <string name="disable_addon_warn_title">Disable Addon</string>
     <string name="disable_addon_warn_name">Disabling %1$s will also:</string>

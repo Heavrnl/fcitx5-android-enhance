@@ -52,14 +52,27 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
     private val keyboardHeightPercentLandscape by keyboardPrefs.keyboardHeightPercentLandscape
     private val keyboardSidePadding by keyboardPrefs.keyboardSidePadding
     private val keyboardSidePaddingLandscape by keyboardPrefs.keyboardSidePaddingLandscape
+    private val keyboardSidePaddingRight by keyboardPrefs.keyboardSidePaddingRight
+    private val keyboardSidePaddingRightLandscape by keyboardPrefs.keyboardSidePaddingRightLandscape
     private val keyboardBottomPadding by keyboardPrefs.keyboardBottomPadding
     private val keyboardBottomPaddingLandscape by keyboardPrefs.keyboardBottomPaddingLandscape
 
-    private val keyboardSidePaddingPx: Int
+    // 左侧 padding
+    private val keyboardLeftPaddingPx: Int
         get() {
             val value = when (ctx.resources.configuration.orientation) {
                 Configuration.ORIENTATION_LANDSCAPE -> keyboardSidePaddingLandscape
                 else -> keyboardSidePadding
+            }
+            return ctx.dp(value)
+        }
+
+    // 右侧 padding
+    private val keyboardRightPaddingPx: Int
+        get() {
+            val value = when (ctx.resources.configuration.orientation) {
+                Configuration.ORIENTATION_LANDSCAPE -> keyboardSidePaddingRightLandscape
+                else -> keyboardSidePaddingRight
             }
             return ctx.dp(value)
         }
@@ -149,7 +162,8 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
         keyboardHeight = h
         fakeKeyboardWindow.updateLayoutParams<ConstraintLayout.LayoutParams> {
             height = keyboardHeight
-            horizontalMargin = keyboardSidePaddingPx
+            leftMargin = keyboardLeftPaddingPx
+            rightMargin = keyboardRightPaddingPx
         }
         intrinsicWidth = keyboardWidth
         // KawaiiBar height + WindowManager view height
@@ -191,7 +205,9 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
         fakeInputView.apply {
             add(fakeKeyboardWindow, lParams(matchConstraints, keyboardHeight) {
                 below(fakeKawaiiBar)
-                centerHorizontally(keyboardSidePaddingPx)
+                centerHorizontally()
+                leftMargin = keyboardLeftPaddingPx
+                rightMargin = keyboardRightPaddingPx
             })
         }
     }
