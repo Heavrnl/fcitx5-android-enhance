@@ -422,9 +422,8 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         val window = ToolbarEditWindow(allButtonsArray, hiddens) { action, addedKeys, newHiddenKeys ->
             when (action) {
                 ToolbarEditWindow.Action.SAVE -> {
-                    // 读取上方保留的 order
                     val newOrder = mutableListOf<String>()
-                    val flexbox = idleUi.buttonsUi.root as com.google.android.flexbox.FlexboxLayout
+                    val flexbox = idleUi.buttonsUi.flexbox
                     for (i in 0 until flexbox.childCount) {
                         (flexbox.getChildAt(i).tag as? String)?.let { newOrder.add(it) }
                     }

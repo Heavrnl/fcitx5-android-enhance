@@ -37,13 +37,23 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             }
         }
 
-    override val root = view(::FlexboxLayout) {
+    val flexbox = view(::FlexboxLayout) {
         alignItems = AlignItems.CENTER
-        justifyContent = JustifyContent.SPACE_AROUND
+        justifyContent = JustifyContent.FLEX_START // 靠左对齐，并保持原生紧凑，避免元素少时居中产生拉伸变形感知
+    }
+
+    override val root = android.widget.HorizontalScrollView(ctx).apply {
+        isHorizontalScrollBarEnabled = false
+        // 要求铺满容器，且子元素高度匹配父容器
+        isFillViewport = true
+        addView(flexbox, android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        ))
     }
 
     private fun handleRemoveRequest(tag: String) {
-        if ((root as FlexboxLayout).childCount <= 1) return
+        if (flexbox.childCount <= 1) return
         onButtonRemoved?.invoke(tag)
     }
 
@@ -108,7 +118,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
 
     fun loadButtonsFromPrefs() {
         // 清除现有的所有按钮视图
-        root.removeAllViews()
+        flexbox.removeAllViews()
         val orderString = prefs.internal.buttonsBarOrder.getValue()
         val orders = if (orderString.isEmpty()) emptyList() else orderString.split(",")
         // 按照设置的顺序进行布局加载
@@ -120,7 +130,9 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                     handleRemoveRequest(key)
                 }
                 val size = ctx.dp(40)
-                root.addView(button, FlexboxLayout.LayoutParams(size, size))
+                flexbox.addView(button, FlexboxLayout.LayoutParams(size, size).apply {
+                    flexShrink = 0f
+                })
             }
         }
         
@@ -134,7 +146,9 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                     button.onEditClickListener = {
                         handleRemoveRequest(key)
                     }
-                    root.addView(button, FlexboxLayout.LayoutParams(size, size))
+                    flexbox.addView(button, FlexboxLayout.LayoutParams(size, size).apply {
+                        flexShrink = 0f
+                    })
                 }
             }
         }
@@ -147,10 +161,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                     // 非编辑模式下长按，我们拉起编辑模式，不执行拖拽。
                     v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     onEditActionRequested?.invoke()
+                    // 取消长按时的所有剩余触摸判定，确保不会触发底层的位移
                     true
                 } else {
                     // 编辑模式下长按，启动拖拽。
-                    val flexbox = root as FlexboxLayout
                     if (flexbox.indexOfChild(v) != -1 && flexbox.childCount <= 1) {
                         return@setOnLongClickListener true // 保护仅剩的一个图标不被拖出
                     }
@@ -167,8 +181,8 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             }
         }
 
-        root.setOnDragListener { v, event ->
-            val flexbox = v as? FlexboxLayout ?: return@setOnDragListener false
+        flexbox.setOnDragListener { v, event ->
+            val flexboxView = v as? FlexboxLayout ?: return@setOnDragListener false
             when (event.action) {
                 DragEvent.ACTION_DRAG_STARTED -> {
                     // 仅当是编辑模式中才可以允许接收拖拽（包含从外面仓库拖上来的）
@@ -181,8 +195,8 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                         
                     val x = event.x
                     var hoverIndex = -1
-                    for (i in 0 until flexbox.childCount) {
-                        val child = flexbox.getChildAt(i)
+                    for (i in 0 until flexboxView.childCount) {
+                        val child = flexboxView.getChildAt(i)
                         val childCenterX = child.left + child.width / 2
                         if (x < childCenterX) {
                             hoverIndex = i
@@ -190,24 +204,24 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                         }
                     }
                         if (hoverIndex == -1) {
-                            hoverIndex = flexbox.childCount
+                            hoverIndex = flexboxView.childCount
                         }
                         
-                        val currentIndex = flexbox.indexOfChild(draggedView)
+                        val currentIndex = flexboxView.indexOfChild(draggedView)
                         if (currentIndex != hoverIndex) {
                             if (currentIndex != -1) {
-                                TransitionManager.beginDelayedTransition(flexbox, ChangeBounds().apply { duration = 150 })
+                                TransitionManager.beginDelayedTransition(flexboxView, ChangeBounds().apply { duration = 150 })
                                 // 内部重新排布
-                                flexbox.removeView(draggedView)
+                                flexboxView.removeView(draggedView)
                                 val insertIndex = if (hoverIndex > currentIndex) hoverIndex - 1 else hoverIndex
-                                flexbox.addView(draggedView, insertIndex)
+                                flexboxView.addView(draggedView, insertIndex)
                             } else {
                                 // 从外面进来的
-                                if (flexbox.childCount < 7) {
-                                    TransitionManager.beginDelayedTransition(flexbox, ChangeBounds().apply { duration = 150 })
+                                if (flexboxView.childCount < 7) {
+                                    TransitionManager.beginDelayedTransition(flexboxView, ChangeBounds().apply { duration = 150 })
                                     (draggedView.parent as? android.view.ViewGroup)?.removeView(draggedView)
                                     draggedView.alpha = 0f // 保持影子状态透明，等 ActionDrop 恢复
-                                    flexbox.addView(draggedView, hoverIndex)
+                                    flexboxView.addView(draggedView, hoverIndex)
                                 }
                             }
                         }
@@ -218,7 +232,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
                     val draggedTag = draggedView.tag as? String ?: return@setOnDragListener false
                     draggedView.alpha = 1f
                     
-                    val currentIndex = flexbox.indexOfChild(draggedView)
+                    val currentIndex = flexboxView.indexOfChild(draggedView)
                     if (isEditMode && currentIndex != -1) {
                         (draggedView as? ToolButton)?.setEditMode(true, isDeletable = true, theme = theme)
                         draggedView.layoutParams = FlexboxLayout.LayoutParams(ctx.dp(40), ctx.dp(40))
@@ -243,7 +257,6 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
 
     fun catchAddedButtonFromBottom(tag: String) {
         val btn = allButtons[tag] ?: return
-        val flexbox = root as FlexboxLayout
         if (flexbox.childCount >= 7) return
         if (flexbox.indexOfChild(btn) == -1) {
             (btn.parent as? android.view.ViewGroup)?.removeView(btn)
