@@ -380,4 +380,5 @@
     <string name="dashscope_region">服务区域</string>
     <string name="dashscope_region_cn">中国内地</string>
     <string name="dashscope_region_intl">国际</string>
+    <string name="keyboard_resize">键盘调节</string>
 </resources>

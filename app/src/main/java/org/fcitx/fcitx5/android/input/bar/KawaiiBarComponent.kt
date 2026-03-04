@@ -336,6 +336,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 quickPhraseButton.setOnClickListener {
                     windowManager.attachWindow(org.fcitx.fcitx5.android.input.quickphrase.QuickPhraseWindow())
                 }
+                keyboardResizeButton.setOnClickListener {
+                    windowManager.attachWindow(org.fcitx.fcitx5.android.input.keyboard.KeyboardResizeWindow())
+                }
                 moreButton.setOnClickListener {
                     windowManager.attachWindow(StatusAreaWindow())
                 }
@@ -404,6 +407,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             "cursorMove" to idleUi.buttonsUi.cursorMoveButton,
             "clipboard" to idleUi.buttonsUi.clipboardButton,
             "quickPhrase" to idleUi.buttonsUi.quickPhraseButton,
+            "keyboardResize" to idleUi.buttonsUi.keyboardResizeButton,
             "more" to idleUi.buttonsUi.moreButton,
             "voice" to idleUi.buttonsUi.voiceButton
         )

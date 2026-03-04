@@ -82,6 +82,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.switch_to_voice_input)
     }
 
+    val keyboardResizeButton = toolButton(R.drawable.ic_baseline_zoom_out_map_24, "keyboardResize").apply {
+        contentDescription = ctx.getString(R.string.keyboard_resize)
+    }
+
     private val allButtons by lazy {
         mapOf(
             "undo" to undoButton,
@@ -89,6 +93,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             "cursorMove" to cursorMoveButton,
             "clipboard" to clipboardButton,
             "quickPhrase" to quickPhraseButton,
+            "keyboardResize" to keyboardResizeButton,
             "more" to moreButton,
             "voice" to voiceButton
         )

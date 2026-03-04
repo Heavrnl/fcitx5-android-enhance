@@ -30,6 +30,7 @@ import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.InputM
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.Keyboard
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ReloadConfig
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ThemeList
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.KeyboardResize
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.AppUtil
@@ -76,6 +77,11 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                 context.getString(R.string.virtual_keyboard),
                 R.drawable.ic_baseline_keyboard_24,
                 Keyboard
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.keyboard_resize),
+                R.drawable.ic_baseline_zoom_out_map_24,
+                KeyboardResize
             )
         )
     }
@@ -152,6 +158,7 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                         }
                         Keyboard -> AppUtil.launchMainToKeyboard(context)
                         ThemeList -> AppUtil.launchMainToThemeList(context)
+                        KeyboardResize -> windowManager.attachWindow(org.fcitx.fcitx5.android.input.keyboard.KeyboardResizeWindow())
                     }
                 }
             }

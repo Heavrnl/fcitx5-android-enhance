@@ -20,7 +20,8 @@ sealed class StatusAreaEntry(
             InputMethod,
             ReloadConfig,
             Keyboard,
-            ThemeList
+            ThemeList,
+            KeyboardResize
         }
     }
 

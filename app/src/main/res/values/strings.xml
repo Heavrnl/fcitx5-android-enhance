@@ -380,4 +380,5 @@
     <string name="dashscope_region">Service Region</string>
     <string name="dashscope_region_cn">Mainland China</string>
     <string name="dashscope_region_intl">International</string>
+    <string name="keyboard_resize">Resize Keyboard</string>
 </resources>

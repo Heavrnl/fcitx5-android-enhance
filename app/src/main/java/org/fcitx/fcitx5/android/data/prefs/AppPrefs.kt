@@ -39,7 +39,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val quickPhraseSortBy = string("quickphrase_sort_by", "lastUsed") // "name", "id", "lastModified", "lastUsed"
         val quickPhraseSortDesc = bool("quickphrase_sort_desc", true)
         val buttonsBarOrder = string("buttons_bar_order", "undo,redo,cursorMove,clipboard,quickPhrase,voice,more")
-        val buttonsBarHidden = string("buttons_bar_hidden", "")
+        val buttonsBarHidden = string("buttons_bar_hidden", "keyboardResize")
     }
 
     inner class Advanced : ManagedPreferenceCategory(R.string.advanced, sharedPreferences) {
