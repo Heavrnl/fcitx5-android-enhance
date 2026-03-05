@@ -13,8 +13,7 @@ object PickerData {
     val RecentlyUsedCategory = Category("⟳", R.drawable.ic_baseline_access_time_24)
 
     val Symbol: List<Pair<Category, Array<String>>> = listOf(
-        Category("1?#", R.drawable.symbol_number_punctuation) to arrayOf(
-            "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+        Category("?#", R.drawable.symbol_number_punctuation) to arrayOf(
             "!", "@", "#", "$", "%", "^", "&", "*", "(", ")",
             "'", "\"", "=", "_", "`", ":", ";", "?",
             "~", "|", "+", "-", "\\", "/", "[", "]", "{", "}",
