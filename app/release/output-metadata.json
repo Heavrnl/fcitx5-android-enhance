@@ -17,21 +17,8 @@
       ],
       "attributes": [],
       "versionCode": 101,
-      "versionName": "v8-1-g1835973d",
-      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-armeabi-v7a-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86_64"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 104,
-      "versionName": "v8-1-g1835973d",
-      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-x86_64-release.apk"
+      "versionName": "ef1d7727",
+      "outputFile": "org.fcitx.fcitx5.android-ef1d7727-armeabi-v7a-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -43,8 +30,21 @@
       ],
       "attributes": [],
       "versionCode": 102,
-      "versionName": "v8-1-g1835973d",
-      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-arm64-v8a-release.apk"
+      "versionName": "ef1d7727",
+      "outputFile": "org.fcitx.fcitx5.android-ef1d7727-arm64-v8a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86_64"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 104,
+      "versionName": "ef1d7727",
+      "outputFile": "org.fcitx.fcitx5.android-ef1d7727-x86_64-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -56,8 +56,8 @@
       ],
       "attributes": [],
       "versionCode": 103,
-      "versionName": "v8-1-g1835973d",
-      "outputFile": "org.fcitx.fcitx5.android-v8-1-g1835973d-x86-release.apk"
+      "versionName": "ef1d7727",
+      "outputFile": "org.fcitx.fcitx5.android-ef1d7727-x86-release.apk"
     }
   ],
   "elementType": "File",

@@ -9,7 +9,6 @@ import android.annotation.SuppressLint
 import android.view.ViewGroup
 import androidx.annotation.CallSuper
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.flexbox.FlexboxLayoutManager
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.input.candidates.CandidateItemUi
 import org.fcitx.fcitx5.android.input.candidates.CandidateViewHolder
@@ -38,6 +37,16 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
         notifyDataSetChanged()
     }
 
+    /**
+     * 追加更多候选词到列表末尾（用于滑动加载更多）
+     */
+    fun appendCandidates(data: Array<String>) {
+        if (data.isEmpty()) return
+        val oldSize = candidates.size
+        candidates = candidates + data
+        notifyItemRangeInserted(oldSize, data.size)
+    }
+
     override fun getItemCount() = candidates.size
 
     override fun getItemId(position: Int) = candidates.getOrNull(position).hashCode().toLong()
@@ -48,7 +57,8 @@ open class HorizontalCandidateViewAdapter(val theme: Theme) :
         ui.root.apply {
             minimumWidth = dp(40)
             setPaddingDp(10, 0, 10, 0)
-            layoutParams = FlexboxLayoutManager.LayoutParams(wrapContent, matchParent)
+            // 使用通用的 RecyclerView.LayoutParams，兼容 LinearLayoutManager
+            layoutParams = RecyclerView.LayoutParams(wrapContent, matchParent)
         }
         return CandidateViewHolder(ui)
     }
