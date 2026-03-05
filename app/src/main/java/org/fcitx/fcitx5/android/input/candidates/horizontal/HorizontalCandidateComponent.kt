@@ -57,6 +57,9 @@ class HorizontalCandidateComponent :
     // 是否正在加载更多候选词
     private var isLoadingMore = false
 
+    // 展开窗口是否已打开，打开时停止更新 offset，避免候选词栏滑动干扰展开窗口
+    var isExpandedWindowAttached = false
+
     // 候选词更新后是否需要在首次 layout 完成时刷新展开按钮状态
     // 使用标志位确保只在候选词数据更新后的首次 layout 触发，滚动不影响
     private var needsRefreshExpanded = false
@@ -178,21 +181,30 @@ class HorizontalCandidateComponent :
     }
 
     /**
-     * 滚动到末尾时自动加载更多候选词的监听器
+     * 滚动监听器：
+     * 1. 实时记录用户最后可见的候选词位置，供展开窗口使用
+     * 2. 滚动到末尾时自动加载更多候选词
      */
     private val scrollListener = object : RecyclerView.OnScrollListener() {
         override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
             super.onScrolled(recyclerView, dx, dy)
-            if (isLoadingMore) return
 
             val lm = layoutManager
-            val totalItemCount = lm.itemCount
             val lastVisibleItem = lm.findLastVisibleItemPosition()
 
+            // 展开窗口未打开时，更新 offset 为用户最后看到的候选词之后
+            // 展开窗口已打开时不更新，避免候选词栏滑动干扰展开窗口内容
+            if (lastVisibleItem >= 0 && !isExpandedWindowAttached) {
+                _expandedCandidateOffset.tryEmit(lastVisibleItem + 1)
+            }
+
             // 当还有更多候选词，且已滑到接近末尾时，加载更多
-            val hasMore = adapter.total < 0 || totalItemCount < adapter.total
-            if (hasMore && lastVisibleItem >= totalItemCount - 3) {
-                loadMoreCandidates()
+            if (!isLoadingMore) {
+                val totalItemCount = lm.itemCount
+                val hasMore = adapter.total < 0 || totalItemCount < adapter.total
+                if (hasMore && lastVisibleItem >= totalItemCount - 3) {
+                    loadMoreCandidates()
+                }
             }
         }
     }

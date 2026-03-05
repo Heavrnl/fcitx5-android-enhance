@@ -116,6 +116,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
     abstract fun nextPage()
 
     override fun onAttached() {
+        horizontalCandidate.isExpandedWindowAttached = true
         bar.expandButtonStateMachine.push(ExpandedCandidatesAttached)
         candidateLayout.embeddedKeyboard.also {
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
@@ -161,6 +162,7 @@ abstract class BaseExpandedCandidateWindow<T : BaseExpandedCandidateWindow<T>> :
         candidatesSubmitJob?.cancel()
         offsetJob?.cancel()
         candidateLayout.embeddedKeyboard.keyActionListener = null
+        horizontalCandidate.isExpandedWindowAttached = false
     }
 
     override fun onPreeditEmptyStateUpdate(empty: Boolean) {
