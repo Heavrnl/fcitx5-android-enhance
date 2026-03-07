@@ -101,6 +101,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
     private val horizontalCandidate: HorizontalCandidateComponent by manager.must()
     private val commonKeyActionListener: CommonKeyActionListener by manager.must()
     private val popup: PopupComponent by manager.must()
+    private val keyboardWindow: KeyboardWindow by manager.must()
 
     private val prefs = AppPrefs.getInstance()
 
@@ -355,6 +356,9 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 moreButton.setOnClickListener {
                     windowManager.attachWindow(StatusAreaWindow())
                 }
+                splitKeyboardButton.setOnClickListener {
+                    keyboardWindow.toggleSplitKeyboard()
+                }
 
                 // 绑定拖拽开启的编辑模式
                 onEditActionRequested = {
@@ -422,6 +426,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             "quickPhrase" to idleUi.buttonsUi.quickPhraseButton,
             "keyboardResize" to idleUi.buttonsUi.keyboardResizeButton,
             "oneHanded" to idleUi.buttonsUi.oneHandedButton,
+            "splitKeyboard" to idleUi.buttonsUi.splitKeyboardButton,
             "more" to idleUi.buttonsUi.moreButton,
             "voice" to idleUi.buttonsUi.voiceButton
         )

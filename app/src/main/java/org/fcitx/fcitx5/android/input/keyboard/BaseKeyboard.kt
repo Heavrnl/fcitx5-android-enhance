@@ -145,6 +145,14 @@ abstract class BaseKeyboard(
     }
 
     private fun createKeyView(def: KeyDef): KeyView {
+        // 间隔占位键：不绘制任何内容，不响应触摸
+        if (def is SpacerDef) {
+            return TextKeyView(context, theme, def.appearance as KeyDef.Appearance.Text).apply {
+                isClickable = false
+                isFocusable = false
+                visibility = View.INVISIBLE
+            }
+        }
         return when (def.appearance) {
             is KeyDef.Appearance.AltText -> AltTextKeyView(context, theme, def.appearance)
             is KeyDef.Appearance.ImageText -> ImageTextKeyView(context, theme, def.appearance)

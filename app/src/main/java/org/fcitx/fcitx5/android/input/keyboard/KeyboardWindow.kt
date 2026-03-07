@@ -5,6 +5,7 @@
 package org.fcitx.fcitx5.android.input.keyboard
 
 import android.text.InputType
+import android.content.res.Configuration
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -68,7 +69,8 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
     private val keyboards: HashMap<String, BaseKeyboard> by lazy {
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
-            NumberKeyboard.Name to NumberKeyboard(context, theme)
+            NumberKeyboard.Name to NumberKeyboard(context, theme),
+            SplitTextKeyboard.Name to SplitTextKeyboard(context, theme)
         )
     }
     private var currentKeyboardName = ""
@@ -114,10 +116,18 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
             it.onReturnDrawableUpdate(returnKeyDrawable.resourceId)
             it.onInputMethodUpdate(fcitx.runImmediately { inputMethodEntryCached })
         }
+        service.activeInputView?.updateKeyboardSize()
     }
 
     fun switchLayout(to: String, remember: Boolean = true) {
-        val target = to.ifEmpty { lastSymbolType }
+        var target = to.ifEmpty { lastSymbolType }
+        if (target == TextKeyboard.Name) {
+            val isLandscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            val splitPref = AppPrefs.getInstance().internal.splitKeyboardEnabled.getValue()
+            if (isLandscape && splitPref) {
+                target = SplitTextKeyboard.Name
+            }
+        }
         ContextCompat.getMainExecutor(service).execute {
             if (keyboards.containsKey(target)) {
                 if (remember && target != TextKeyboard.Name) {
@@ -142,9 +152,28 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         val targetLayout = when (info.inputType and InputType.TYPE_MASK_CLASS) {
             InputType.TYPE_CLASS_NUMBER -> NumberKeyboard.Name
             InputType.TYPE_CLASS_PHONE -> NumberKeyboard.Name
-            else -> TextKeyboard.Name
+            else -> {
+                // 横屏时根据偏好自动选择分离模式
+                val isLandscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                val splitPref = AppPrefs.getInstance().internal.splitKeyboardEnabled.getValue()
+                if (isLandscape && splitPref) SplitTextKeyboard.Name else TextKeyboard.Name
+            }
         }
         switchLayout(targetLayout, remember = false)
+    }
+
+    val isSplitMode: Boolean
+        get() = currentKeyboardName == SplitTextKeyboard.Name
+
+    fun toggleSplitKeyboard() {
+        val prefs = AppPrefs.getInstance().internal
+        if (isSplitMode) {
+            prefs.splitKeyboardEnabled.setValue(false)
+            switchLayout(TextKeyboard.Name, remember = false)
+        } else {
+            prefs.splitKeyboardEnabled.setValue(true)
+            switchLayout(SplitTextKeyboard.Name, remember = false)
+        }
     }
 
     override fun onImeUpdate(ime: InputMethodEntry) {

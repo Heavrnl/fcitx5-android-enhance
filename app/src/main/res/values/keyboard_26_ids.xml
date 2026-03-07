@@ -5,6 +5,7 @@
     <item name="button_quickphrase" type="id"/>
     <item name="button_lang" type="id"/>
     <item name="button_space" type="id"/>
+    <item name="button_space_right" type="id"/>
     <item name="button_punctuation" type="id"/>
     <item name="button_return" type="id"/>
 </resources>

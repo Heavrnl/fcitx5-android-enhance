@@ -383,7 +383,7 @@ class InputView(
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
     }
 
-    private fun updateKeyboardSize() {
+    fun updateKeyboardSize() {
         windowManager.view.updateLayoutParams {
             height = keyboardHeightPx
         }
@@ -398,6 +398,13 @@ class InputView(
 
         var leftPadding = keyboardLeftPaddingPx
         var rightPadding = keyboardRightPaddingPx
+
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (landscape) {
+            val pad = dp(35)
+            leftPadding += pad
+            rightPadding += pad
+        }
 
         // 单手模式覆盖 side padding
         when (oneHandedMode) {

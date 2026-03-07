@@ -44,6 +44,8 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val oneHandedMode = string("one_handed_mode", "off")
         // 记忆上次选择的单手方向
         val oneHandedLastSide = string("one_handed_last_side", "right")
+        // 分离键盘模式：记忆用户是否启用了分离键盘
+        val splitKeyboardEnabled = bool("split_keyboard_enabled", false)
     }
 
     inner class Advanced : ManagedPreferenceCategory(R.string.advanced, sharedPreferences) {

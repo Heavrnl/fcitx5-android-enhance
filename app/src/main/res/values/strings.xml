@@ -386,4 +386,5 @@
     <string name="one_handed_left">Left hand</string>
     <string name="one_handed_right">Right hand</string>
     <string name="full_keyboard">Full keyboard</string>
+    <string name="split_keyboard">Split keyboard</string>
 </resources>

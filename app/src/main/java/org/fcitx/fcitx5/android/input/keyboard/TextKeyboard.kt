@@ -449,7 +449,7 @@ class TextKeyboard(
 
     private fun updateAlphabetKeys() {
         textKeys.forEach {
-            if (it.def !is KeyDef.Appearance.AltText) return
+            if (it.def !is KeyDef.Appearance.AltText) return@forEach
             it.mainText.text = it.def.displayText.let { str ->
                 if (str.length != 1 || !str[0].isLetter()) return@forEach
                 if (keepLettersUppercase) str.uppercase() else transformAlphabet(str)
@@ -465,7 +465,7 @@ class TextKeyboard(
             } else {
                 it.def as KeyDef.Appearance.Text
                 it.mainText.text = it.def.displayText.let { str ->
-                    if (str[0].run { isLetter() || isWhitespace() }) return@forEach
+                    if (str.isEmpty() || str[0].run { isLetter() || isWhitespace() }) return@forEach
                     transformPunctuation(str)
                 }
             }

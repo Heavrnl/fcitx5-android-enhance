@@ -28,12 +28,28 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
     // 当编辑模式下（且不是长按时而是单点）点击一个 ToolButton 时触发
     var onButtonRemoved: ((String) -> Unit)? = null
 
+    private val splitKeyboardShield = View(ctx).apply {
+        isClickable = true
+        isFocusable = true
+        setOnTouchListener { _, _ -> true } // 连拖拽事件都全拦截
+    }
+
     var isEditMode: Boolean = false
         set(value) {
             field = value
             allButtons.values.forEach { 
                 it.setEditMode(value, true, theme)
                 it.alpha = 1f // 进出编辑模式均恢复透明度
+            }
+            if (value) {
+                if (splitKeyboardShield.parent == null) {
+                    splitKeyboardButton.addView(splitKeyboardShield, android.widget.FrameLayout.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    ))
+                }
+            } else {
+                splitKeyboardButton.removeView(splitKeyboardShield)
             }
         }
 
@@ -100,6 +116,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.one_handed_mode)
     }
 
+    val splitKeyboardButton = toolButton(R.drawable.ic_baseline_flip_24, "splitKeyboard").apply {
+        contentDescription = ctx.getString(R.string.split_keyboard)
+    }
+
     private val allButtons by lazy {
         mapOf(
             "undo" to undoButton,
@@ -109,6 +129,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             "quickPhrase" to quickPhraseButton,
             "keyboardResize" to keyboardResizeButton,
             "oneHanded" to oneHandedButton,
+            "splitKeyboard" to splitKeyboardButton,
             "more" to moreButton,
             "voice" to voiceButton
         )
@@ -125,7 +146,28 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         // 清除现有的所有按钮视图
         flexbox.removeAllViews()
         val orderString = prefs.internal.buttonsBarOrder.getValue()
-        val orders = if (orderString.isEmpty()) emptyList() else orderString.split(",")
+        val rawOrders = if (orderString.isEmpty()) emptyList() else orderString.split(",")
+        
+        val hiddenStr = prefs.internal.buttonsBarHidden.getValue()
+        val hiddenOrders = if (hiddenStr.isEmpty()) emptyList() else hiddenStr.split(",")
+        
+        val isLandscape = ctx.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        
+        val orders = rawOrders.toMutableList()
+        if (isLandscape) {
+            // 在横屏下，如果本身没有设定隐藏 splitKeyboard，同时偏好也没包含，则尝试自动添加
+            if (!orders.contains("splitKeyboard") && !hiddenOrders.contains("splitKeyboard")) {
+                if (orders.size >= 2) {
+                    orders.add(orders.size - 1, "splitKeyboard")
+                } else {
+                    orders.add("splitKeyboard")
+                }
+            }
+        } else {
+            // 非横屏下强制从工具条隐藏分离键盘
+            orders.remove("splitKeyboard")
+        }
+
         // 按照设置的顺序进行布局加载
         orders.forEach { key ->
             allButtons[key]?.let { button ->
@@ -143,10 +185,11 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         }
         
         // （如果在默认值外还有新的内建组件，但配置没包含，不再直接强制塞在最后，我们假设新加入的直接丢去仓库就行，这里不用处理。但这为了兼容性，如果发现未配置且也不在仓库的，我们统一追加上）
-        val hiddenStr = prefs.internal.buttonsBarHidden.getValue()
-        val hiddenOrders = if (hiddenStr.isEmpty()) emptyList() else hiddenStr.split(",")
         allButtons.forEach { (key, button) ->
             if (!orders.contains(key) && !hiddenOrders.contains(key)) {
+                // 如果是非横屏且是 splitKeyboard，应当被隐性视作 hidden，不自动加回末尾
+                if (key == "splitKeyboard" && !isLandscape) return@forEach
+
                 if (button.parent == null) {
                     val size = ctx.dp(40)
                     button.onEditClickListener = {

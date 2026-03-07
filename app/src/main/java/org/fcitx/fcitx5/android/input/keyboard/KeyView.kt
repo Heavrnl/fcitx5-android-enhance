@@ -212,7 +212,7 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         if (bordered) return
         when (def.viewId) {
-            R.id.button_space -> {
+            R.id.button_space, R.id.button_space_right -> {
                 val bkgRadius = dp(3f)
                 val minHeight = dp(26)
                 val hInset = dp(10)
