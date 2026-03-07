@@ -108,6 +108,19 @@ class PopupComponent :
             (popup.root.parent as? ViewGroup)?.removeView(popup.root)
             root.addView(popup.root)
         }
+        
+        // 浮动模式下按比例缩小气泡，且以底边中心为锚点
+        val isFloating = service.activeInputView?.isFloatingMode == true
+        if (isFloating) {
+            popup.root.scaleX = 0.75f
+            popup.root.scaleY = 0.75f
+            popup.root.pivotX = popupWidth / 2f
+            popup.root.pivotY = popupHeight.toFloat()
+        } else {
+            popup.root.scaleX = 1f
+            popup.root.scaleY = 1f
+        }
+        
         showingEntryUi[viewId] = popup
     }
 
@@ -167,6 +180,18 @@ class PopupComponent :
                 topMargin = ui.triggerBounds.top + ui.offsetY - rootBounds.top
             })
         }
+        
+        val isFloating = service.activeInputView?.isFloatingMode == true
+        if (isFloating) {
+            ui.root.scaleX = 0.75f
+            ui.root.scaleY = 0.75f
+            ui.root.pivotX = ui.triggerBounds.centerX() - (ui.triggerBounds.left + ui.offsetX).toFloat()
+            ui.root.pivotY = ui.triggerBounds.bottom - (ui.triggerBounds.top + ui.offsetY).toFloat()
+        } else {
+            ui.root.scaleX = 1f
+            ui.root.scaleY = 1f
+        }
+        
         showingContainerUi[viewId] = ui
     }
 

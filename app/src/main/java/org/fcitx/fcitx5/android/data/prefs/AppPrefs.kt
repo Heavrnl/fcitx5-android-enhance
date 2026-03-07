@@ -39,11 +39,13 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val quickPhraseSortBy = string("quickphrase_sort_by", "lastUsed") // "name", "id", "lastModified", "lastUsed"
         val quickPhraseSortDesc = bool("quickphrase_sort_desc", true)
         val buttonsBarOrder = string("buttons_bar_order", "undo,redo,cursorMove,clipboard,quickPhrase,voice,more")
-        val buttonsBarHidden = string("buttons_bar_hidden", "keyboardResize,oneHanded")
+        val buttonsBarHidden = string("buttons_bar_hidden", "keyboardResize,oneHanded,floatingKeyboard")
         // 单手模式：off / left / right
         val oneHandedMode = string("one_handed_mode", "off")
         // 记忆上次选择的单手方向
         val oneHandedLastSide = string("one_handed_last_side", "right")
+        // 悬浮键盘模式
+        val floatingKeyboardEnabled = bool("floating_keyboard_enabled", false)
         // 分离键盘模式：记忆用户是否启用了分离键盘
         val splitKeyboardEnabled = bool("split_keyboard_enabled", false)
     }

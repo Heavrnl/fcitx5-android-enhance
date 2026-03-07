@@ -78,10 +78,10 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
 
     private val cachedLocation = intArrayOf(0, 0)
     private val cachedBounds = Rect()
-    private var boundsValid = false
     val bounds: Rect
         get() = cachedBounds.also {
-            if (!boundsValid) updateBounds()
+            // 实时获取当前坐标，不在悬浮等不触发 onLayout 阶段造成缓存错位
+            updateBounds()
         }
 
     /**
@@ -185,12 +185,16 @@ abstract class KeyView(ctx: Context, val theme: Theme, val def: KeyDef.Appearanc
 
     fun updateBounds() {
         val (x, y) = cachedLocation.also { appearanceView.getLocationInWindow(it) }
-        cachedBounds.set(x, y, x + appearanceView.width, y + appearanceView.height)
-        boundsValid = true
+        // 通过 context 获取 Service 的 activeInputView 实时悬浮状态
+        val isFloating = (context as? org.fcitx.fcitx5.android.input.FcitxInputMethodService)
+            ?.activeInputView?.isFloatingMode == true
+        val scale = if (isFloating) 0.75f else 1f
+        val w = (appearanceView.width * scale).toInt()
+        val h = (appearanceView.height * scale).toInt()
+        cachedBounds.set(x, y, x + w, y + h)
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        boundsValid = false
         if (layoutMarginLeft != 0f || layoutMarginRight != 0f) {
             val w = right - left
             val h = bottom - top

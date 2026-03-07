@@ -1,4 +1,4 @@
-/*
+﻿/*
  * SPDX-License-Identifier: LGPL-2.1-or-later
  * SPDX-FileCopyrightText: Copyright 2021-2026 Fcitx5 for Android Contributors
  */
@@ -11,8 +11,6 @@ import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
-import android.graphics.Rect
-import android.graphics.Region
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
@@ -452,23 +450,19 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     /**
-     * 发送图片到当前输入框
-     * 使用 Android Rich Content API (InputConnection.commitContent)
+     * 鍙戦€佸浘鐗囧埌褰撳墠杈撳叆妗?     * 浣跨敤 Android Rich Content API (InputConnection.commitContent)
      * 
-     * @param imageUri 图片的 Content URI（必须通过 FileProvider 获取）
-     * @param mimeType 图片的 MIME 类型，如 "image/png"
-     * @return 是否成功发送
-     */
+     * @param imageUri 鍥剧墖鐨?Content URI锛堝繀椤婚€氳繃 FileProvider 鑾峰彇锛?     * @param mimeType 鍥剧墖鐨?MIME 绫诲瀷锛屽 "image/png"
+     * @return 鏄惁鎴愬姛鍙戦€?     */
     fun commitImage(imageUri: android.net.Uri, mimeType: String): Boolean {
         val ic = currentInputConnection ?: return false
         val editorInfo = currentInputEditorInfo ?: return false
         
-        // 检查输入框是否支持该 MIME 类型
+        // 妫€鏌ヨ緭鍏ユ鏄惁鏀寔璇?MIME 绫诲瀷
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             val supportedMimeTypes = androidx.core.view.inputmethod.EditorInfoCompat.getContentMimeTypes(editorInfo)
             
-            // 检查是否支持图片
-            val supported = supportedMimeTypes.any { supported ->
+            // 妫€鏌ユ槸鍚︽敮鎸佸浘鐗?            val supported = supportedMimeTypes.any { supported ->
                 android.content.ClipDescription.compareMimeTypes(mimeType, supported)
             }
             
@@ -477,15 +471,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
                 return false
             }
             
-            // 创建 InputContentInfo
+            // 鍒涘缓 InputContentInfo
             val inputContentInfo = androidx.core.view.inputmethod.InputContentInfoCompat(
                 imageUri,
                 android.content.ClipDescription("Image", arrayOf(mimeType)),
-                null // 可选的 link Uri
+                null // 鍙€夌殑 link Uri
             )
             
-            // 发送图片
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            // 鍙戦€佸浘鐗?            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
                 android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION
             } else {
                 0
@@ -656,29 +649,11 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onComputeInsets(outInsets: Insets) {
         if (inputDeviceMgr.isVirtualKeyboard) {
-            // 悬浮模式：让系统认为键盘不占空间，输入框不被顶起，同时允许触摸穿透
-            val isFloating = activeInputView?.isFloatingMode == true
-            if (isFloating) {
-                val h = decorView.height
-                outInsets.apply {
-                    contentTopInsets = h
-                    visibleTopInsets = h
-                    touchableInsets = Insets.TOUCHABLE_INSETS_REGION
-                    touchableRegion.setEmpty() // 清除原有全屏捕获
-                    // 将实际可视并且接受触控的区域加入（含缩放变换后的尺寸）
-                    val rect = Rect()
-                    inputView?.innerWrapper?.getGlobalVisibleRect(rect)
-                    if (!rect.isEmpty) touchableRegion.op(rect, Region.Op.UNION)
-                    inputView?.dragHandle?.getGlobalVisibleRect(rect)
-                    if (!rect.isEmpty) touchableRegion.op(rect, Region.Op.UNION)
-                }
-            } else {
-                inputView?.keyboardView?.getLocationInWindow(inputViewLocation)
-                outInsets.apply {
-                    contentTopInsets = inputViewLocation[1]
-                    visibleTopInsets = inputViewLocation[1]
-                    touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
-                }
+            inputView?.keyboardView?.getLocationInWindow(inputViewLocation)
+            outInsets.apply {
+                contentTopInsets = inputViewLocation[1]
+                visibleTopInsets = inputViewLocation[1]
+                touchableInsets = Insets.TOUCHABLE_INSETS_VISIBLE
             }
         } else {
             val n = decorView.findViewById<View>(android.R.id.navigationBarBackground)?.height ?: 0

@@ -8,10 +8,15 @@ package org.fcitx.fcitx5.android.input
 import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Outline
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.MotionEvent
+import android.view.ViewOutlineProvider
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InlineSuggestionsResponse
@@ -20,6 +25,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.updateLayoutParams
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.CapabilityFlags
@@ -54,6 +60,7 @@ import splitties.views.dsl.constraintlayout.above
 import splitties.views.dsl.constraintlayout.below
 import splitties.views.dsl.constraintlayout.bottomOfParent
 import splitties.views.dsl.constraintlayout.centerHorizontally
+import splitties.views.dsl.constraintlayout.centerInParent
 import splitties.views.dsl.constraintlayout.centerVertically
 import splitties.views.dsl.constraintlayout.constraintLayout
 import splitties.views.dsl.constraintlayout.endOfParent
@@ -108,6 +115,81 @@ class InputView(
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
         visibility = View.GONE
+    }
+
+    // 悬浮键盘相关
+    private val floatingPref = internalPrefs.floatingKeyboardEnabled
+    internal var isFloatingMode = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        floatingPref.getValue()
+    } else {
+        false
+    }
+    private var floatingOffsetX = 0f
+    private var floatingOffsetY = 0f
+    // 记录是否处于无候选词状态（preedit 为空）
+    private var isPreeditEmpty = true
+
+    // 拖拽手柄（小横线 + 大触摸区域）
+    // 注意：dragHandle 放入 innerWrapper 的顶部区域，与 preedit 互斥显示
+    @SuppressLint("ClickableViewAccessibility")
+    internal val dragHandle = FrameLayout(context).apply {
+        var defaultColor = theme.altKeyTextColor
+        var targetColor = theme.accentKeyBackgroundColor
+        val lineDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dp(2f)
+            setColor(defaultColor)
+        }
+        val line = View(context).apply {
+            background = lineDrawable
+        }
+        val lineParams = FrameLayout.LayoutParams(dp(40), dp(4)).apply {
+            gravity = Gravity.CENTER
+        }
+        addView(line, lineParams)
+        visibility = View.GONE
+        var lastTouchX = 0f
+        var lastTouchY = 0f
+        var colorAnimator: android.animation.ValueAnimator? = null
+        
+        fun animateColor(fromColor: Int, toColor: Int) {
+            colorAnimator?.cancel()
+            colorAnimator = android.animation.ValueAnimator.ofArgb(fromColor, toColor).apply {
+                duration = 200
+                addUpdateListener { animator ->
+                    lineDrawable.setColor(animator.animatedValue as Int)
+                }
+                start()
+            }
+        }
+
+        setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    lastTouchX = event.rawX
+                    lastTouchY = event.rawY
+                    animateColor(defaultColor, targetColor)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - lastTouchX
+                    val dy = event.rawY - lastTouchY
+                    floatingOffsetX += dx
+                    floatingOffsetY += dy
+                    // 整体移动 innerWrapper，由于 dragHandle 现为 innerWrapper 的子元素，它也会跟随移动
+                    innerWrapper.translationX = floatingOffsetX
+                    innerWrapper.translationY = floatingOffsetY
+                    lastTouchX = event.rawX
+                    lastTouchY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    animateColor(targetColor, defaultColor)
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     // 创建侧边面板按钮
@@ -170,6 +252,103 @@ class InputView(
         }
         oneHandedModePref.setValue(mode)
         updateKeyboardSize()
+    }
+
+    // 切换悬浮键盘模式
+    fun toggleFloatingMode() {
+        isFloatingMode = !isFloatingMode
+        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            floatingPref.setValue(isFloatingMode)
+        }
+        floatingOffsetX = 0f
+        floatingOffsetY = 0f
+        applyFloatingState(isFloatingMode)
+        updateKeyboardSize()
+        requestLayout()
+        windowManager.attachWindow(keyboardWindow)
+    }
+
+    // 悬浮缩放比例
+    private val floatingScale = 0.75f
+
+    // 应用或移除悬浮视觉效果
+    private fun applyFloatingState(floating: Boolean) {
+        if (floating) {
+            // 等比例缩小 wrapper
+            innerWrapper.scaleX = floatingScale
+            innerWrapper.scaleY = floatingScale
+            // 缩放轴心设为底部中心
+            innerWrapper.pivotX = innerWrapper.width / 2f
+            innerWrapper.pivotY = innerWrapper.height.toFloat()
+            // 设置 elevation 产生阴影效果
+            innerWrapper.elevation = dp(8f)
+            popup.root.elevation = dp(16f) // 气泡也得具有更高的Z轴高度以防止被键盘盖住
+            innerWrapper.outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, dp(12f))
+                }
+            }
+            innerWrapper.clipToOutline = true
+            // 为 topArea 赋予悬浮特有背景色（键盘底色）
+            topArea?.setBackgroundColor(theme.backgroundColor)
+            // 默认向上偏移一段距离，让键盘明显脱离底部
+            val defaultOffsetY = if (floatingOffsetY == 0f) -dp(80f) else floatingOffsetY
+            floatingOffsetY = defaultOffsetY
+            innerWrapper.translationX = floatingOffsetX
+            innerWrapper.translationY = floatingOffsetY
+            // 隐藏底部占位
+            bottomPaddingSpace.visibility = View.GONE
+            // 显示拖拽手柄
+            updateDragHandleVisibility()
+        } else {
+            // 恢复原始比例
+            innerWrapper.scaleX = 1f
+            innerWrapper.scaleY = 1f
+            // 清除 elevation 和圆角
+            innerWrapper.elevation = 0f
+            popup.root.elevation = 0f
+            innerWrapper.outlineProvider = ViewOutlineProvider.BACKGROUND
+            innerWrapper.clipToOutline = false
+            // 恢复 topArea 的背景为透明
+            topArea?.background = null
+            // 重置位移
+            innerWrapper.translationX = 0f
+            innerWrapper.translationY = 0f
+            // 恢复底部占位
+            bottomPaddingSpace.visibility = View.VISIBLE
+            // 隐藏拖拽手柄
+            dragHandle.visibility = View.GONE
+        }
+    }
+
+    // 更新拖拽手柄及候选词栏可见性：悬浮模式且无候选词时显示手柄，否则显示候选区
+    private fun updateDragHandleVisibility() {
+        if (isFloatingMode) {
+            topArea?.visibility = View.VISIBLE
+            if (isPreeditEmpty) {
+                // 无输入：显示手柄，隐藏候选区
+                dragHandle.visibility = View.VISIBLE
+                preedit.ui.root.visibility = View.GONE
+            } else {
+                // 有输入：显示候选区，隐藏手柄
+                dragHandle.visibility = View.GONE
+                preedit.ui.root.visibility = View.VISIBLE
+            }
+        } else {
+            // 普通模式：完全隐藏手柄，并清除 topArea 的特有背景。
+            // 候选区正常按需显示
+            dragHandle.visibility = View.GONE
+            preedit.ui.root.visibility = View.VISIBLE
+            // 普通模式不需要强制 topArea 占用视口和背景色
+            topArea?.background = null
+            topArea?.visibility = View.VISIBLE
+        }
+    }
+
+    // 供外部（PreeditEmptyState）调用来通知候选词状态变化
+    fun onPreeditEmptyStateChanged(empty: Boolean) {
+        isPreeditEmpty = empty
+        updateDragHandleVisibility()
     }
 
     private val scope = DynamicScope()
@@ -254,6 +433,12 @@ class InputView(
 
     private val keyboardHeightPx: Int
         get() {
+            // 如果处于悬浮模式，则无论横竖屏都强制拿手机长边(竖屏高度)与竖屏配置乘算
+            if (isFloatingMode) {
+                val percent = keyboardHeightPercent.getValue()
+                val portraitHeight = kotlin.math.max(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels)
+                return portraitHeight * percent / 100
+            }
             val percent = when (resources.configuration.orientation) {
                 Configuration.ORIENTATION_LANDSCAPE -> keyboardHeightPercentLandscape
                 else -> keyboardHeightPercent
@@ -298,6 +483,8 @@ class InputView(
     }
 
     val keyboardView: View
+    internal lateinit var innerWrapper: ConstraintLayout
+    private var topArea: ConstraintLayout? = null
 
     init {
         // MUST call before any operation
@@ -365,13 +552,52 @@ class InputView(
             })
         }
 
+        // 实例化 innerWrapper
+        innerWrapper = constraintLayout {
+            // 当候选词栏出现或消失造成尺寸变化时，实时调整缩放中心为新底部，避免悬浮键盘基石发生平移
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                if (isFloatingMode) {
+                    pivotX = width / 2f
+                    pivotY = height.toFloat()
+                }
+            }
+            // 设置统一背景色（随主题）在悬浮时形成完整的视觉边界
+            if (isFloatingMode) {
+                background = ColorDrawable(theme.backgroundColor)
+            }
+
+            // 顶部区域：容纳 preedit 或者 拖拽手柄
+            topArea = constraintLayout {
+                id = View.generateViewId()
+                add(preedit.ui.root, lParams(matchParent, wrapContent) {
+                    centerInParent()
+                })
+                add(dragHandle, lParams(matchParent, dp(40)) { // 加高手柄区域使其像个真正的标题栏
+                    centerInParent()
+                })
+            }
+
+            add(topArea!!, lParams(matchParent, wrapContent) {
+                topOfParent()
+                centerHorizontally()
+            })
+            add(keyboardView, lParams(matchParent, wrapContent) {
+                below(topArea!!)
+                centerHorizontally()
+                bottomOfParent()
+            })
+        }
+
         updateKeyboardSize()
 
-        add(preedit.ui.root, lParams(matchParent, wrapContent) {
-            above(keyboardView)
-            centerHorizontally()
-        })
-        add(keyboardView, lParams(matchParent, wrapContent) {
+        val initialWrapperWidth = if (isFloatingMode) {
+            val metrics = resources.displayMetrics
+            kotlin.math.min(metrics.widthPixels, metrics.heightPixels)
+        } else {
+            matchParent
+        }
+        
+        add(innerWrapper, lParams(initialWrapperWidth, wrapContent) {
             centerHorizontally()
             bottomOfParent()
         })
@@ -381,20 +607,62 @@ class InputView(
         })
 
         keyboardPrefs.registerOnChangeListener(onKeyboardSizeChangeListener)
+
+        // 应用初始悬浮状态
+        if (isFloatingMode) {
+            innerWrapper.post {
+                floatingOffsetX = 0f
+                floatingOffsetY = 0f
+                applyFloatingState(true)
+                requestLayout()
+            }
+        }
     }
 
     fun updateKeyboardSize() {
+        if (innerWrapper.layoutParams != null) {
+            if (isFloatingMode) {
+                // 在悬浮模式下，强制锁定键盘渲染层的实际宽度为手机“竖屏宽度”（长宽中的短边）
+                val metrics = resources.displayMetrics
+                val portraitWidth = kotlin.math.min(metrics.widthPixels, metrics.heightPixels)
+                innerWrapper.updateLayoutParams { width = portraitWidth }
+            } else {
+                innerWrapper.updateLayoutParams { width = android.view.ViewGroup.LayoutParams.MATCH_PARENT }
+            }
+        }
         windowManager.view.updateLayoutParams {
             height = keyboardHeightPx
         }
-        bottomPaddingSpace.updateLayoutParams {
-            height = keyboardBottomPaddingPx
+        if (isFloatingMode) {
+            bottomPaddingSpace.visibility = View.GONE
+            bottomPaddingSpace.updateLayoutParams { height = 0 }
+        } else {
+            bottomPaddingSpace.updateLayoutParams {
+                height = keyboardBottomPaddingPx
+            }
+        }
+
+        // 悬浮模式下跳过单手模式和 padding 逻辑
+        if (isFloatingMode) {
+            leftPaddingSpace.visibility = GONE
+            rightPaddingSpace.visibility = GONE
+            oneHandedPanel.visibility = View.GONE
+            (oneHandedPanel.parent as? ViewGroup)?.removeView(oneHandedPanel)
+            windowManager.view.updateLayoutParams<LayoutParams> {
+                startToEnd = unset
+                endToStart = unset
+                startOfParent()
+                endOfParent()
+            }
+            preedit.ui.root.setPadding(0, 0, 0, 0)
+            kawaiiBar.view.setPadding(0, 0, 0, 0)
+            return
         }
 
         // 计算有效的左右 padding（考虑单手模式）
         val oneHandedMode = oneHandedModePref.getValue()
         val displayWidth = resources.displayMetrics.widthPixels
-        val oneHandedPadding = (displayWidth * 0.25f).toInt() // 25% 宽度作为留白，键盘保持 75%
+        val oneHandedPadding = (displayWidth * 0.25f).toInt()
 
         var leftPadding = keyboardLeftPaddingPx
         var rightPadding = keyboardRightPaddingPx
@@ -525,6 +793,8 @@ class InputView(
         when (it) {
             is FcitxEvent.CandidateListEvent -> {
                 broadcaster.onCandidateUpdate(it.data)
+                // 候选词为空时悬浮手柄可见
+                onPreeditEmptyStateChanged(it.data.candidates.isEmpty())
             }
             is FcitxEvent.ClientPreeditEvent -> {
                 preeditEmptyState.updatePreeditEmptyState(clientPreedit = it.data)

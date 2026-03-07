@@ -116,6 +116,10 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
         contentDescription = ctx.getString(R.string.one_handed_mode)
     }
 
+    val floatingKeyboardButton = toolButton(R.drawable.ic_floating_keyboard_24, "floatingKeyboard").apply {
+        contentDescription = ctx.getString(R.string.floating_keyboard)
+    }
+
     val splitKeyboardButton = toolButton(R.drawable.ic_baseline_flip_24, "splitKeyboard").apply {
         contentDescription = ctx.getString(R.string.split_keyboard)
     }
@@ -129,6 +133,7 @@ class ButtonsBarUi(override val ctx: Context, private val theme: Theme) : Ui {
             "quickPhrase" to quickPhraseButton,
             "keyboardResize" to keyboardResizeButton,
             "oneHanded" to oneHandedButton,
+            "floatingKeyboard" to floatingKeyboardButton,
             "splitKeyboard" to splitKeyboardButton,
             "more" to moreButton,
             "voice" to voiceButton

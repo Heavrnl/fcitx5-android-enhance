@@ -22,7 +22,8 @@ sealed class StatusAreaEntry(
             Keyboard,
             ThemeList,
             KeyboardResize,
-            OneHanded
+            OneHanded,
+            FloatingKeyboard
         }
     }
 

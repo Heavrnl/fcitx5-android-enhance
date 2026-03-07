@@ -359,6 +359,10 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
                 splitKeyboardButton.setOnClickListener {
                     keyboardWindow.toggleSplitKeyboard()
                 }
+                floatingKeyboardButton.setOnClickListener {
+                    // 切换悬浮键盘模式
+                    service.activeInputView?.toggleFloatingMode()
+                }
 
                 // 绑定拖拽开启的编辑模式
                 onEditActionRequested = {
@@ -426,6 +430,7 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
             "quickPhrase" to idleUi.buttonsUi.quickPhraseButton,
             "keyboardResize" to idleUi.buttonsUi.keyboardResizeButton,
             "oneHanded" to idleUi.buttonsUi.oneHandedButton,
+            "floatingKeyboard" to idleUi.buttonsUi.floatingKeyboardButton,
             "splitKeyboard" to idleUi.buttonsUi.splitKeyboardButton,
             "more" to idleUi.buttonsUi.moreButton,
             "voice" to idleUi.buttonsUi.voiceButton

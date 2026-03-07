@@ -32,6 +32,7 @@ import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.Reload
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.ThemeList
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.KeyboardResize
 import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.OneHanded
+import org.fcitx.fcitx5.android.input.status.StatusAreaEntry.Android.Type.FloatingKeyboard
 import org.fcitx.fcitx5.android.input.wm.InputWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.utils.AppUtil
@@ -88,6 +89,11 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                 context.getString(R.string.one_handed_mode),
                 R.drawable.ic_baseline_smartphone_24,
                 OneHanded
+            ),
+            StatusAreaEntry.Android(
+                context.getString(R.string.floating_keyboard),
+                R.drawable.ic_floating_keyboard_24,
+                FloatingKeyboard
             )
         )
     }
@@ -176,6 +182,10 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(),
                             } else {
                                 inputView?.setOneHandedMode("off")
                             }
+                        }
+                        FloatingKeyboard -> {
+                            // 切换悬浮键盘模式
+                            service.activeInputView?.toggleFloatingMode()
                         }
                     }
                 }

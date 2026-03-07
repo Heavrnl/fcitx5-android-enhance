@@ -386,4 +386,5 @@
     <string name="one_handed_left">左手模式</string>
     <string name="one_handed_right">右手模式</string>
     <string name="full_keyboard">全键盘</string>
+    <string name="floating_keyboard">悬浮键盘</string>
 </resources>
