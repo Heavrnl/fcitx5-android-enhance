@@ -76,7 +76,7 @@ class TextKeyboard(
                 BackspaceKey()
             ),
             listOf(
-                LayoutSwitchKey("符", PickerWindow.Key.Symbol.name, 0.12f, KeyDef.Appearance.Variant.Alternative),
+                LayoutSwitchKey("14键", FourteenKeyKeyboard.Name, 0.12f, KeyDef.Appearance.Variant.Alternative),
                 LayoutSwitchKey("123", NumberKeyboard.Name, 0.12f, KeyDef.Appearance.Variant.Alternative),
                 CommaKey(0.1f, KeyDef.Appearance.Variant.Alternative),
                 SpaceKey(),

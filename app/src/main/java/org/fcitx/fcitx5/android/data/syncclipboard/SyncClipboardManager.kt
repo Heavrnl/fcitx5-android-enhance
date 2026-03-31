@@ -157,6 +157,8 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
     }
 
     private val pendingEchoes = java.util.Collections.synchronizedSet(HashSet<String>())
+    // 图片上传的回显过滤：记录我们自己上传的图片文件名，防止服务器推送回来时重复保存
+    private val pendingImageEchoes = java.util.Collections.synchronizedSet(HashSet<String>())
 
     private val clipboardListener = ClipboardManager.OnClipboardUpdateListener { entry ->
         // 仅处理文本更新 (图片目前似乎是手动或 separate logic handles?)
@@ -255,12 +257,24 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
                 ProfileDto.TYPE_IMAGE, ProfileDto.TYPE_FILE -> {
                     val dataName = profile.dataName
                     if (!dataName.isNullOrBlank() && profile.hasData) {
+                        // 检查是否是我们自己上传的图片回显
+                        if (pendingImageEchoes.remove(dataName)) {
+                            Timber.d("SyncClipboard: Ignoring image echo: $dataName")
+                            return
+                        }
                         val httpClient = client ?: createClient() ?: return
                         val imageResult = httpClient.downloadFile(dataName)
                         imageResult.onSuccess { bytes ->
                             saveImageToClipboardHistory(bytes, dataName)
                             if (prefs.saveToGallery.getValue()) {
-                                saveToGallery(bytes, dataName)
+                                // 重命名文件，避免以 "screenshot" 开头
+                                // 从而不会被 ScreenshotDetector 误识别为新截图导致无限循环
+                                val galleryName = if (dataName.lowercase().startsWith("screenshot")) {
+                                    "sync_$dataName"
+                                } else {
+                                    dataName
+                                }
+                                saveToGallery(bytes, galleryName)
                             }
                             Timber.d("SyncClipboard: Downloaded file from server: $dataName")
                         }
@@ -332,10 +346,20 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         val hash = calculateServerHash(filename, bytes)
         val uploadResult = client.uploadFile(filename, bytes)
         
+        // 记录上传的文件名，用于过滤服务器推回来的回显
+        pendingImageEchoes.add(filename)
+        
         return uploadResult.map {
             val data = SyncClipboardData.image(hash, filename)
-            client.putClipboard(data).isSuccess
-        }.getOrDefault(false)
+            val success = client.putClipboard(data).isSuccess
+            if (!success) {
+                pendingImageEchoes.remove(filename)
+            }
+            success
+        }.getOrElse {
+            pendingImageEchoes.remove(filename)
+            false
+        }
     }
 
     /**
@@ -354,11 +378,21 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         val filename = "sync_${System.currentTimeMillis()}.png"
         val hash = calculateServerHash(filename, bytes)
         
+        // 记录上传的文件名，用于过滤服务器推回来的回显
+        pendingImageEchoes.add(filename)
+        
         val uploadResult = client.uploadFile(filename, bytes)
         return uploadResult.map {
             val data = SyncClipboardData.image(hash, filename)
-            client.putClipboard(data).isSuccess
-        }.getOrDefault(false)
+            val success = client.putClipboard(data).isSuccess
+            if (!success) {
+                pendingImageEchoes.remove(filename)
+            }
+            success
+        }.getOrElse {
+            pendingImageEchoes.remove(filename)
+            false
+        }
     }
 
     /**

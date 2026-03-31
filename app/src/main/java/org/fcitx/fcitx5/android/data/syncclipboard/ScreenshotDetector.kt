@@ -25,6 +25,7 @@ import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.utils.appContext
 import timber.log.Timber
 import java.io.File
+import java.security.MessageDigest
 
 /**
  * Detects screenshots using ContentObserver on MediaStore
@@ -39,6 +40,12 @@ object ScreenshotDetector : CoroutineScope by CoroutineScope(SupervisorJob() + D
     
     // Debounce interval in milliseconds
     private const val DEBOUNCE_INTERVAL = 1000L
+
+    // 已处理的图片文件内容 hash，用于去重，防止循环
+    private val processedHashes = java.util.Collections.synchronizedSet(
+        LinkedHashSet<String>()
+    )
+    private const val MAX_PROCESSED_HASHES = 50
 
     @Keep
     private val detectionEnabledListener = ManagedPreference.OnChangeListener<Boolean> { _, enabled ->
@@ -159,6 +166,12 @@ object ScreenshotDetector : CoroutineScope by CoroutineScope(SupervisorJob() + D
         val lowerPath = path.lowercase()
         val fileName = File(path).name.lowercase()
         
+        // 排除应用自身通过 saveToGallery 保存的图片，防止无限循环
+        if (lowerPath.contains("/pictures/fcitx5/")) {
+            Timber.d("ScreenshotDetector: Skipping app-saved image: $path")
+            return false
+        }
+        
         return lowerPath.contains("/screenshots/") ||
                lowerPath.contains("/screenshot") ||
                fileName.startsWith("screenshot") ||
@@ -177,6 +190,22 @@ object ScreenshotDetector : CoroutineScope by CoroutineScope(SupervisorJob() + D
             }
             
             val bytes = file.readBytes()
+
+            // 计算文件内容 hash，防止同一张图片被重复处理（循环保护）
+            val hash = MessageDigest.getInstance("MD5")
+                .digest(bytes)
+                .joinToString("") { "%02x".format(it) }
+            if (!processedHashes.add(hash)) {
+                Timber.d("ScreenshotDetector: Skipping already processed image (hash=$hash)")
+                return
+            }
+            // 限制集合大小，防止内存泄漏
+            synchronized(processedHashes) {
+                while (processedHashes.size > MAX_PROCESSED_HASHES) {
+                    processedHashes.iterator().let { it.next(); it.remove() }
+                }
+            }
+
             val imageDir = ClipboardManager.imageDir
             
             // Create clipboard entry from image bytes
