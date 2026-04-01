@@ -70,8 +70,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(), Essentia
         hashMapOf(
             TextKeyboard.Name to TextKeyboard(context, theme),
             NumberKeyboard.Name to NumberKeyboard(context, theme),
-            SplitTextKeyboard.Name to SplitTextKeyboard(context, theme),
-            FourteenKeyKeyboard.Name to FourteenKeyKeyboard(context, theme)
+            SplitTextKeyboard.Name to SplitTextKeyboard(context, theme)
         )
     }
     private var currentKeyboardName = ""
