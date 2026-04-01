@@ -52,9 +52,24 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         scheduleCleanup()
     }
 
+    // 服务器配置变更时自动重连
+    @Keep
+    private val configChangeListener = ManagedPreference.OnChangeListener<String> { _, _ ->
+        if (prefs.enabled.getValue()) {
+            Timber.i("SyncClipboard: Config changed, reconnecting...")
+            stopSync()
+            startSync()
+        }
+    }
+
     fun init() {
         Timber.i("SyncClipboardManager: init called")
         prefs.enabled.registerOnChangeListener(enabledListener)
+        
+        // 注册配置变更监听器，URL/用户名/密码变更时自动重连
+        prefs.serverUrl.registerOnChangeListener(configChangeListener)
+        prefs.username.registerOnChangeListener(configChangeListener)
+        prefs.password.registerOnChangeListener(configChangeListener)
         
         // Register listeners for cleanup
         prefs.saveToGallery.registerOnChangeListener(cleanupListener)
@@ -197,6 +212,7 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         Timber.i("SyncClipboardManager: attempting to start sync")
         signalRClient?.disconnect()
         signalRClient = createSignalRClient()
+        client = createClient()  // 初始化 HTTP 客户端
         
         if (signalRClient == null) {
             Timber.w("SyncClipboardManager: failed to create client (missing config?)")

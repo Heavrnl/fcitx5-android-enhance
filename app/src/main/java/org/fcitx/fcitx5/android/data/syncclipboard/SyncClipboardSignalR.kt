@@ -36,8 +36,10 @@ class SyncClipboardSignalR(
         private const val TAG = "SignalR"
         private const val HUB_PATH = "/SyncClipboardHub"
         private const val RECORD_SEPARATOR = '\u001E' // ASCII 30 - SignalR message delimiter
-        private const val RECONNECT_DELAY_MS = 5000L
+        private const val INITIAL_RECONNECT_DELAY_MS = 3000L  // 初始重连间隔 3 秒
+        private const val MAX_RECONNECT_DELAY_MS = 60000L     // 最大重连间隔 60 秒
         private const val PING_INTERVAL_MS = 15000L
+        private const val HANDSHAKE_TIMEOUT_MS = 15000L       // 握手超时 15 秒
     }
 
     private val json = Json { 
@@ -54,9 +56,12 @@ class SyncClipboardSignalR(
 
     private var webSocket: WebSocket? = null
     private var isConnected = false
+    private var isConnecting = false       // 标记是否正在建立连接（防止并发连接）
     private var shouldReconnect = true
+    private var reconnectAttempt = 0       // 当前重连次数（用于指数退避）
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
+    private var handshakeTimeoutJob: Job? = null  // 握手超时检测任务
 
     var onProfileChanged: ((ProfileDto) -> Unit)? = null
     var onConnected: (() -> Unit)? = null
@@ -72,11 +77,19 @@ class SyncClipboardSignalR(
      * 连接到 SignalR Hub
      */
     fun connect() {
-        if (isConnected) return
+        if (isConnected || isConnecting) {
+            Timber.tag(TAG).d("Already connected or connecting, skipping")
+            return
+        }
+        isConnecting = true
         shouldReconnect = true
         
+        // 清理旧的 WebSocket，防止多个实例并存
+        webSocket?.close(1000, "Reconnecting")
+        webSocket = null
+        
         val wsUrl = buildWebSocketUrl()
-        Timber.tag(TAG).d("Connecting to: $wsUrl")
+        Timber.tag(TAG).d("Connecting to: $wsUrl (attempt=$reconnectAttempt)")
 
         val request = Request.Builder()
             .url(wsUrl)
@@ -84,6 +97,9 @@ class SyncClipboardSignalR(
             .build()
 
         webSocket = client.newWebSocket(request, WebSocketListenerImpl())
+        
+        // 启动握手超时检测：如果超时未完成握手，强制断开并重连
+        startHandshakeTimeout()
     }
 
     /**
@@ -91,8 +107,11 @@ class SyncClipboardSignalR(
      */
     fun disconnect() {
         shouldReconnect = false
+        isConnecting = false
+        reconnectAttempt = 0
         pingJob?.cancel()
         reconnectJob?.cancel()
+        handshakeTimeoutJob?.cancel()
         webSocket?.close(1000, "Client disconnect")
         webSocket = null
         isConnected = false
@@ -150,15 +169,44 @@ class SyncClipboardSignalR(
     }
 
     /**
+     * 握手超时检测
+     * 如果握手在指定时间内未完成，强制断开连接并触发重连
+     */
+    private fun startHandshakeTimeout() {
+        handshakeTimeoutJob?.cancel()
+        handshakeTimeoutJob = launch {
+            delay(HANDSHAKE_TIMEOUT_MS)
+            if (!isConnected && isConnecting) {
+                Timber.tag(TAG).w("Handshake timeout after ${HANDSHAKE_TIMEOUT_MS}ms, forcing reconnect")
+                isConnecting = false
+                webSocket?.cancel() // 使用 cancel() 强制关闭，不等待服务器响应
+                webSocket = null
+                scheduleReconnect()
+            }
+        }
+    }
+
+    /**
+     * 计算指数退避延迟
+     * 从 3s 开始，每次翻倍，最大 60s
+     */
+    private fun getReconnectDelay(): Long {
+        val delay = INITIAL_RECONNECT_DELAY_MS * (1L shl minOf(reconnectAttempt, 4))
+        return minOf(delay, MAX_RECONNECT_DELAY_MS)
+    }
+
+    /**
      * 计划重连
      */
     private fun scheduleReconnect() {
         if (!shouldReconnect) return
         
         reconnectJob?.cancel()
+        val delayMs = getReconnectDelay()
+        reconnectAttempt++
         reconnectJob = launch {
-            Timber.tag(TAG).d("Reconnecting in ${RECONNECT_DELAY_MS}ms...")
-            delay(RECONNECT_DELAY_MS)
+            Timber.tag(TAG).d("Reconnecting in ${delayMs}ms (attempt=$reconnectAttempt)...")
+            delay(delayMs)
             if (shouldReconnect) {
                 connect()
             }
@@ -179,11 +227,15 @@ class SyncClipboardSignalR(
                     val handshakeResponse = json.decodeFromString<SignalRHandshakeResponse>(msgText)
                     if (handshakeResponse.error == null) {
                         isConnected = true
+                        isConnecting = false
+                        reconnectAttempt = 0  // 连接成功，重置重连计数
+                        handshakeTimeoutJob?.cancel()
                         Timber.tag(TAG).i("Connected to server")
                         startPingJob()
                         onConnected?.invoke()
                     } else {
                         Timber.tag(TAG).e("Handshake error: ${handshakeResponse.error}")
+                        isConnecting = false
                         disconnect()
                     }
                     continue
@@ -260,7 +312,9 @@ class SyncClipboardSignalR(
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Timber.tag(TAG).w("WebSocket closed: $code $reason")
             isConnected = false
+            isConnecting = false
             pingJob?.cancel()
+            handshakeTimeoutJob?.cancel()
             onDisconnected?.invoke(null)
             scheduleReconnect()
         }
@@ -268,7 +322,9 @@ class SyncClipboardSignalR(
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Timber.tag(TAG).e(t, "WebSocket failure: ${response?.code} ${response?.message}")
             isConnected = false
+            isConnecting = false
             pingJob?.cancel()
+            handshakeTimeoutJob?.cancel()
             onDisconnected?.invoke(t)
             scheduleReconnect()
         }
