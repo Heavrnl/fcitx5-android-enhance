@@ -160,6 +160,8 @@ class VoiceWindow(private val startImmediately: Boolean = false) : InputWindow.E
         get() = context.getString(R.string.switch_to_voice_input)
 
     private fun startRecording() {
+        // 防重入：避免重复启动导致多个识别会话
+        if (isRecording) return
         isRecording = true
         ui.statusText.text = "正在聆听..."
         ui.setRecordingState(true)

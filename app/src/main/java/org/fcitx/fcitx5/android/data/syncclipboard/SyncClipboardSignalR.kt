@@ -40,6 +40,7 @@ class SyncClipboardSignalR(
         private const val MAX_RECONNECT_DELAY_MS = 60000L     // 最大重连间隔 60 秒
         private const val PING_INTERVAL_MS = 15000L
         private const val HANDSHAKE_TIMEOUT_MS = 15000L       // 握手超时 15 秒
+        private const val ALIVE_TIMEOUT_MS = 45000L           // 活性超时 45 秒（3 个 ping 周期未收到消息则判定假死）
     }
 
     private val json = Json { 
@@ -62,6 +63,7 @@ class SyncClipboardSignalR(
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
     private var handshakeTimeoutJob: Job? = null  // 握手超时检测任务
+    private var lastMessageTime = 0L               // 最后收到服务器消息的时间戳
 
     var onProfileChanged: ((ProfileDto) -> Unit)? = null
     var onConnected: (() -> Unit)? = null
@@ -162,6 +164,18 @@ class SyncClipboardSignalR(
             while (isConnected) {
                 delay(PING_INTERVAL_MS)
                 if (isConnected) {
+                    // 检查活性超时：如果距离上次收到消息超过阈值，认为连接假死
+                    val elapsed = System.currentTimeMillis() - lastMessageTime
+                    if (elapsed > ALIVE_TIMEOUT_MS) {
+                        Timber.tag(TAG).w("Connection seems dead (no message for ${elapsed}ms), forcing reconnect")
+                        isConnected = false
+                        isConnecting = false
+                        webSocket?.cancel()
+                        webSocket = null
+                        onDisconnected?.invoke(null)
+                        scheduleReconnect()
+                        return@launch
+                    }
                     sendPing()
                 }
             }
@@ -220,6 +234,9 @@ class SyncClipboardSignalR(
         // SignalR 消息以 RECORD_SEPARATOR 分隔
         val messages = text.split(RECORD_SEPARATOR).filter { it.isNotBlank() }
         
+        // 收到任何消息都更新活性时间戳
+        lastMessageTime = System.currentTimeMillis()
+        
         for (msgText in messages) {
             try {
                 // 首先尝试解析为握手响应
@@ -229,6 +246,7 @@ class SyncClipboardSignalR(
                         isConnected = true
                         isConnecting = false
                         reconnectAttempt = 0  // 连接成功，重置重连计数
+                        lastMessageTime = System.currentTimeMillis()  // 初始化活性时间戳
                         handshakeTimeoutJob?.cancel()
                         Timber.tag(TAG).i("Connected to server")
                         startPingJob()

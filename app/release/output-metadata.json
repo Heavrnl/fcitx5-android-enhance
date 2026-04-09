@@ -17,8 +17,8 @@
       ],
       "attributes": [],
       "versionCode": 101,
-      "versionName": "v13-1-g9f00f4fd",
-      "outputFile": "org.fcitx.fcitx5.android-v13-1-g9f00f4fd-armeabi-v7a-release.apk"
+      "versionName": "v13-2-g91482337",
+      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-armeabi-v7a-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -30,8 +30,8 @@
       ],
       "attributes": [],
       "versionCode": 104,
-      "versionName": "v13-1-g9f00f4fd",
-      "outputFile": "org.fcitx.fcitx5.android-v13-1-g9f00f4fd-x86_64-release.apk"
+      "versionName": "v13-2-g91482337",
+      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-x86_64-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -43,8 +43,8 @@
       ],
       "attributes": [],
       "versionCode": 103,
-      "versionName": "v13-1-g9f00f4fd",
-      "outputFile": "org.fcitx.fcitx5.android-v13-1-g9f00f4fd-x86-release.apk"
+      "versionName": "v13-2-g91482337",
+      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-x86-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -56,8 +56,8 @@
       ],
       "attributes": [],
       "versionCode": 102,
-      "versionName": "v13-1-g9f00f4fd",
-      "outputFile": "org.fcitx.fcitx5.android-v13-1-g9f00f4fd-arm64-v8a-release.apk"
+      "versionName": "v13-2-g91482337",
+      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-arm64-v8a-release.apk"
     }
   ],
   "elementType": "File",

@@ -46,6 +46,18 @@ class VoiceRecognizer(
     private val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
 
     fun start(corpusText: String = "") {
+        // 防重入：如果已经在录音，先完整清理旧会话，避免多个 WebSocket 同时活跃导致重复转录
+        if (isRecording) {
+            Timber.w("VoiceRecognizer.start() 被重复调用，先清理旧会话")
+            stopInternal()
+            try {
+                webSocket?.close(1000, "Restarting")
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+            webSocket = null
+        }
+
         val apiKey = AppPrefs.getInstance().voiceInput.dashscopeApiKey.getValue().trim()
         if (apiKey.isBlank()) {
             onError("请先在设置中配置 DashScope API Key")

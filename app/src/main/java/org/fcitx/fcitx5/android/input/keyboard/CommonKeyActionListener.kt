@@ -67,8 +67,13 @@ class CommonKeyActionListener :
     private var backspaceSwipeState = Stopped
 
     private var voiceRecognizer: org.fcitx.fcitx5.android.input.voice.VoiceRecognizer? = null
+    // 防重入标志：防止长按空格键重复触发语音识别
+    private var isVoiceListening = false
 
     private fun startVoiceRecognition() {
+        // 防重入：如果已经在语音识别中，直接跳过
+        if (isVoiceListening) return
+        isVoiceListening = true
         if (voiceRecognizer == null) {
             voiceRecognizer = org.fcitx.fcitx5.android.input.voice.VoiceRecognizer(
                 context,
@@ -82,6 +87,7 @@ class CommonKeyActionListener :
                 },
                 onError = { err ->
                     timber.log.Timber.e("Voice recognition error: $err")
+                    isVoiceListening = false
                     kawaiiBar.hideVoiceListening()
                 }
             )
@@ -92,6 +98,7 @@ class CommonKeyActionListener :
 
     private fun stopVoiceRecognition() {
         voiceRecognizer?.stop()
+        isVoiceListening = false
         service.currentInputConnection?.finishComposingText()
         kawaiiBar.hideVoiceListening()
     }
