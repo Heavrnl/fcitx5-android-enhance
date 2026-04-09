@@ -36,8 +36,7 @@ class SyncClipboardSignalR(
         private const val TAG = "SignalR"
         private const val HUB_PATH = "/SyncClipboardHub"
         private const val RECORD_SEPARATOR = '\u001E' // ASCII 30 - SignalR message delimiter
-        private const val INITIAL_RECONNECT_DELAY_MS = 3000L  // 初始重连间隔 3 秒
-        private const val MAX_RECONNECT_DELAY_MS = 60000L     // 最大重连间隔 60 秒
+        private const val RECONNECT_DELAY_MS = 1000L           // 固定重连间隔 1 秒
         private const val PING_INTERVAL_MS = 15000L
         private const val HANDSHAKE_TIMEOUT_MS = 15000L       // 握手超时 15 秒
         private const val ALIVE_TIMEOUT_MS = 45000L           // 活性超时 45 秒（3 个 ping 周期未收到消息则判定假死）
@@ -59,7 +58,7 @@ class SyncClipboardSignalR(
     private var isConnected = false
     private var isConnecting = false       // 标记是否正在建立连接（防止并发连接）
     private var shouldReconnect = true
-    private var reconnectAttempt = 0       // 当前重连次数（用于指数退避）
+    private var reconnectAttempt = 0       // 当前重连次数（仅用于日志）
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
     private var handshakeTimeoutJob: Job? = null  // 握手超时检测任务
@@ -201,13 +200,9 @@ class SyncClipboardSignalR(
     }
 
     /**
-     * 计算指数退避延迟
-     * 从 3s 开始，每次翻倍，最大 60s
+     * 获取重连延迟（固定 1 秒）
      */
-    private fun getReconnectDelay(): Long {
-        val delay = INITIAL_RECONNECT_DELAY_MS * (1L shl minOf(reconnectAttempt, 4))
-        return minOf(delay, MAX_RECONNECT_DELAY_MS)
-    }
+    private fun getReconnectDelay(): Long = RECONNECT_DELAY_MS
 
     /**
      * 计划重连
