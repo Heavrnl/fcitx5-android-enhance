@@ -98,6 +98,7 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
             cleanupJob = launch {
                 while (true) {
                     cleanOldGalleryImages()
+                    cleanClipboardImagesDir()
                     // Check every hour effectively
                     kotlinx.coroutines.delay(3600000L)
                 }
@@ -155,6 +156,32 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
             }
         } catch (e: Exception) {
             Timber.e(e, "SyncClipboard: Failed to clean old gallery images")
+        }
+    }
+
+    private fun cleanClipboardImagesDir() {
+        val dir = ClipboardManager.imageDir
+        val files = dir.listFiles()
+        if (files.isNullOrEmpty()) {
+            Timber.d("SyncClipboard: No files in clipboard_images to clean")
+            return
+        }
+
+        var deleted = 0
+        files.forEach { file ->
+            runCatching {
+                if (file.isFile && file.delete()) {
+                    deleted++
+                }
+            }.onFailure { e ->
+                Timber.w(e, "SyncClipboard: Failed to delete clipboard image: ${file.absolutePath}")
+            }
+        }
+
+        if (deleted > 0) {
+            Timber.i("SyncClipboard: Cleaned $deleted files from clipboard_images")
+        } else {
+            Timber.d("SyncClipboard: No clipboard_images files were deleted")
         }
     }
 

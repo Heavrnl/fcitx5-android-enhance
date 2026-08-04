@@ -17,34 +17,8 @@
       ],
       "attributes": [],
       "versionCode": 101,
-      "versionName": "v13-2-g91482337",
-      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-armeabi-v7a-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86_64"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 104,
-      "versionName": "v13-2-g91482337",
-      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-x86_64-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 103,
-      "versionName": "v13-2-g91482337",
-      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-x86-release.apk"
+      "versionName": "v14-0-g6c3a6228",
+      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-armeabi-v7a-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -56,8 +30,34 @@
       ],
       "attributes": [],
       "versionCode": 102,
-      "versionName": "v13-2-g91482337",
-      "outputFile": "org.fcitx.fcitx5.android-v13-2-g91482337-arm64-v8a-release.apk"
+      "versionName": "v14-0-g6c3a6228",
+      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-arm64-v8a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 103,
+      "versionName": "v14-0-g6c3a6228",
+      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-x86-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86_64"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 104,
+      "versionName": "v14-0-g6c3a6228",
+      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-x86_64-release.apk"
     }
   ],
   "elementType": "File",
