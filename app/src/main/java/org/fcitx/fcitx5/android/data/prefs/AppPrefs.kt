@@ -492,6 +492,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val dashscopeApiKey = password(
             R.string.dashscope_api_key, "dashscope_api_key", ""
         )
+        val dashscopeWorkspaceId = string(
+            R.string.dashscope_workspace_id, "dashscope_workspace_id", ""
+        )
     }
 
     enum class VoiceInputMode : ManagedPreferenceEnum {

@@ -377,7 +377,8 @@
     <string name="voice_input_mode_click">Click Mode</string>
     <string name="voice_input_mode_long_press">Long Press Mode</string>
     <string name="dashscope_api_key">DashScope API Key</string>
-    <string name="dashscope_api_key_summary">Model: qwen3-asr-flash-realtime\nCreate API Key: https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_api_key_summary">Model: qwen-audio-3.0-asr-flash-streaming\nCreate API Key: https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_workspace_id">DashScope Workspace ID</string>
     <string name="dashscope_region">Service Region</string>
     <string name="dashscope_region_cn">Mainland China</string>
     <string name="dashscope_region_intl">International</string>

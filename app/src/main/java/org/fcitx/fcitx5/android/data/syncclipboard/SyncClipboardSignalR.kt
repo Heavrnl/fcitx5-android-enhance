@@ -54,14 +54,19 @@ class SyncClipboardSignalR(
         .readTimeout(0, TimeUnit.MINUTES) // No timeout for WebSocket
         .build()
 
+    @Volatile
     private var webSocket: WebSocket? = null
+    @Volatile
     private var isConnected = false
+    @Volatile
     private var isConnecting = false       // 标记是否正在建立连接（防止并发连接）
+    @Volatile
     private var shouldReconnect = true
     private var reconnectAttempt = 0       // 当前重连次数（仅用于日志）
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
     private var handshakeTimeoutJob: Job? = null  // 握手超时检测任务
+    @Volatile
     private var lastMessageTime = 0L               // 最后收到服务器消息的时间戳
 
     var onProfileChanged: ((ProfileDto) -> Unit)? = null
@@ -100,7 +105,7 @@ class SyncClipboardSignalR(
         webSocket = client.newWebSocket(request, WebSocketListenerImpl())
         
         // 启动握手超时检测：如果超时未完成握手，强制断开并重连
-        startHandshakeTimeout()
+        webSocket?.let(::startHandshakeTimeout)
     }
 
     /**
@@ -134,11 +139,11 @@ class SyncClipboardSignalR(
     /**
      * 发送 SignalR 握手
      */
-    private fun sendHandshake() {
+    private fun sendHandshake(webSocket: WebSocket) {
         // 使用硬编码的 JSON 字符串以确保格式正确
         // 注意：SignalR 协议要求握手消息必须以 RECORD_SEPARATOR (0x1E) 结尾
         val handshake = """{"protocol":"json","version":1}""" + RECORD_SEPARATOR
-        if (webSocket?.send(handshake) == true) {
+        if (webSocket.send(handshake)) {
             Timber.tag(TAG).d("Sent handshake: $handshake")
         } else {
             Timber.tag(TAG).e("Failed to send handshake")
@@ -148,34 +153,34 @@ class SyncClipboardSignalR(
     /**
      * 发送 Ping 消息
      */
-    private fun sendPing() {
+    private fun sendPing(webSocket: WebSocket) {
         val ping = SignalRPingMessage()
         val message = json.encodeToString(ping) + RECORD_SEPARATOR
-        webSocket?.send(message)
+        webSocket.send(message)
     }
 
     /**
      * 启动 Ping 定时任务
      */
-    private fun startPingJob() {
+    private fun startPingJob(webSocket: WebSocket) {
         pingJob?.cancel()
         pingJob = launch {
-            while (isConnected) {
+            while (isCurrentSocket(webSocket) && isConnected) {
                 delay(PING_INTERVAL_MS)
-                if (isConnected) {
+                if (isCurrentSocket(webSocket) && isConnected) {
                     // 检查活性超时：如果距离上次收到消息超过阈值，认为连接假死
                     val elapsed = System.currentTimeMillis() - lastMessageTime
                     if (elapsed > ALIVE_TIMEOUT_MS) {
                         Timber.tag(TAG).w("Connection seems dead (no message for ${elapsed}ms), forcing reconnect")
                         isConnected = false
                         isConnecting = false
-                        webSocket?.cancel()
-                        webSocket = null
+                        webSocket.cancel()
+                        this@SyncClipboardSignalR.webSocket = null
                         onDisconnected?.invoke(null)
                         scheduleReconnect()
                         return@launch
                     }
-                    sendPing()
+                    sendPing(webSocket)
                 }
             }
         }
@@ -185,19 +190,22 @@ class SyncClipboardSignalR(
      * 握手超时检测
      * 如果握手在指定时间内未完成，强制断开连接并触发重连
      */
-    private fun startHandshakeTimeout() {
+    private fun startHandshakeTimeout(webSocket: WebSocket) {
         handshakeTimeoutJob?.cancel()
         handshakeTimeoutJob = launch {
             delay(HANDSHAKE_TIMEOUT_MS)
-            if (!isConnected && isConnecting) {
+            if (isCurrentSocket(webSocket) && !isConnected && isConnecting) {
                 Timber.tag(TAG).w("Handshake timeout after ${HANDSHAKE_TIMEOUT_MS}ms, forcing reconnect")
                 isConnecting = false
-                webSocket?.cancel() // 使用 cancel() 强制关闭，不等待服务器响应
-                webSocket = null
+                webSocket.cancel() // 使用 cancel() 强制关闭，不等待服务器响应
+                this@SyncClipboardSignalR.webSocket = null
                 scheduleReconnect()
             }
         }
     }
+
+    private fun isCurrentSocket(webSocket: WebSocket): Boolean =
+        this.webSocket === webSocket
 
     /**
      * 获取重连延迟（固定 1 秒）
@@ -225,7 +233,12 @@ class SyncClipboardSignalR(
     /**
      * 处理收到的消息
      */
-    private fun handleMessage(text: String) {
+    private fun handleMessage(webSocket: WebSocket, text: String) {
+        if (!isCurrentSocket(webSocket)) {
+            Timber.tag(TAG).d("Ignoring message from stale WebSocket")
+            return
+        }
+
         // SignalR 消息以 RECORD_SEPARATOR 分隔
         val messages = text.split(RECORD_SEPARATOR).filter { it.isNotBlank() }
         
@@ -244,7 +257,7 @@ class SyncClipboardSignalR(
                         lastMessageTime = System.currentTimeMillis()  // 初始化活性时间戳
                         handshakeTimeoutJob?.cancel()
                         Timber.tag(TAG).i("Connected to server")
-                        startPingJob()
+                        startPingJob(webSocket)
                         onConnected?.invoke()
                     } else {
                         Timber.tag(TAG).e("Handshake error: ${handshakeResponse.error}")
@@ -309,13 +322,17 @@ class SyncClipboardSignalR(
      */
     private inner class WebSocketListenerImpl : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
+            if (!isCurrentSocket(webSocket)) {
+                webSocket.close(1000, "Stale connection")
+                return
+            }
             Timber.tag(TAG).i("WebSocket opened: ${response.message}")
-            sendHandshake()
+            sendHandshake(webSocket)
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             Timber.tag(TAG).v("Received message: $text")
-            handleMessage(text)
+            handleMessage(webSocket, text)
         }
 
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -324,6 +341,11 @@ class SyncClipboardSignalR(
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Timber.tag(TAG).w("WebSocket closed: $code $reason")
+            if (!isCurrentSocket(webSocket)) {
+                Timber.tag(TAG).d("Ignoring close callback from stale WebSocket")
+                return
+            }
+            this@SyncClipboardSignalR.webSocket = null
             isConnected = false
             isConnecting = false
             pingJob?.cancel()
@@ -334,6 +356,11 @@ class SyncClipboardSignalR(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Timber.tag(TAG).e(t, "WebSocket failure: ${response?.code} ${response?.message}")
+            if (!isCurrentSocket(webSocket)) {
+                Timber.tag(TAG).d("Ignoring failure callback from stale WebSocket")
+                return
+            }
+            this@SyncClipboardSignalR.webSocket = null
             isConnected = false
             isConnecting = false
             pingJob?.cancel()

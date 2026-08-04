@@ -5,7 +5,7 @@
 - **跨设备剪切板同步**：需配合 [SyncClipboard](https://github.com/Jeric-X/SyncClipboard) 使用
 - **验证码自动提取**
 - **快捷短语**
-- **语音输入**：基于 qwen3-asr-flash-realtime，长按 `空格` 或从 `工具栏` 触发
+- **语音输入**：基于 qwen-audio-3.0-asr-flash-streaming，长按 `空格` 或从 `工具栏` 触发
 - **键盘手写**
 - **键盘调节**
 - **单手模式**
@@ -18,5 +18,5 @@
 - **快捷操作**：剪贴板 URL 项增加“打开链接”按钮
 
 ### 语音配置说明
-- **模型**：Qwen3-ASR-Flash-Realtime（[API Key 获取](https://modelstudio.console.alibabacloud.com/ap-southeast-1/?tab=dashboard#/api-key)）
+- **模型**：qwen-audio-3.0-asr-flash-streaming（[API Key 获取](https://modelstudio.console.alibabacloud.com/)）
 - **费用**：国际站 ~$0.324/h (免费 10h) | 国内站 ~$0.1692/h

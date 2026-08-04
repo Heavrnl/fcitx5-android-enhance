@@ -17,10 +17,9 @@ class VoiceInputSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstanc
             // 先清除已有的 SummaryProvider，否则直接 setSummary 会抛异常
             summaryProvider = null
             val displayUrl = "https://modelstudio.console.alibabacloud.com"
-            val targetUrl = "https://modelstudio.console.alibabacloud.com/ap-southeast-1/?tab=dashboard#/api-key"
             summary = HtmlCompat.fromHtml(
                 getString(R.string.dashscope_api_key_summary)
-                    .replace(displayUrl, "<a href=\"$targetUrl\">$displayUrl</a>"),
+                    .replace(displayUrl, "<a href=\"$displayUrl\">$displayUrl</a>"),
                 HtmlCompat.FROM_HTML_MODE_COMPACT
             )
         }

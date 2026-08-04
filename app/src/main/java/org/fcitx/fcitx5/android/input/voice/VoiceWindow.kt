@@ -7,7 +7,6 @@ import org.fcitx.fcitx5.android.input.FcitxInputMethodService
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
 import org.fcitx.fcitx5.android.input.wm.InputWindow
-import timber.log.Timber
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.view.MotionEvent
@@ -165,14 +164,7 @@ class VoiceWindow(private val startImmediately: Boolean = false) : InputWindow.E
         isRecording = true
         ui.statusText.text = "正在聆听..."
         ui.setRecordingState(true)
-        // 获取光标前400个字符作为语料，增强识别效果
-        val corpusText = service.currentInputConnection
-            ?.getTextBeforeCursor(400, 0)
-            ?.toString()
-            ?.trim()
-            ?: ""
-        Timber.i("startRecording: corpusText length=${corpusText.length}, content='${corpusText.take(50)}'")
-        recognizer.start(corpusText)
+        recognizer.start()
     }
 
     private fun stopRecording() {
