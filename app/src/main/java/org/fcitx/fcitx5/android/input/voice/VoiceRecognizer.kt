@@ -160,7 +160,7 @@ class VoiceRecognizer(
                         put("task_group", "audio")
                         put("task", "asr")
                         put("function", "recognition")
-                        put("model", "qwen-audio-3.0-asr-flash-streaming")
+                        put("model", "qwen-audio-3.1-asr-flash-streaming")
                         put("parameters", JSONObject().apply {
                             put("format", "pcm")
                             put("sample_rate", sampleRate)

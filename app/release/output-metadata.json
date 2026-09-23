@@ -16,35 +16,9 @@
         }
       ],
       "attributes": [],
-      "versionCode": 101,
-      "versionName": "v14-0-g6c3a6228",
-      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-armeabi-v7a-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "arm64-v8a"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 102,
-      "versionName": "v14-0-g6c3a6228",
-      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-arm64-v8a-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 103,
-      "versionName": "v14-0-g6c3a6228",
-      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-x86-release.apk"
+      "versionCode": 111,
+      "versionName": "v14-2-g2933b34f",
+      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-armeabi-v7a-release.apk"
     },
     {
       "type": "ONE_OF_MANY",
@@ -55,9 +29,35 @@
         }
       ],
       "attributes": [],
-      "versionCode": 104,
-      "versionName": "v14-0-g6c3a6228",
-      "outputFile": "org.fcitx.fcitx5.android-v14-0-g6c3a6228-x86_64-release.apk"
+      "versionCode": 114,
+      "versionName": "v14-2-g2933b34f",
+      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-x86_64-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 113,
+      "versionName": "v14-2-g2933b34f",
+      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-x86-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "arm64-v8a"
+        }
+      ],
+      "attributes": [],
+      "versionCode": 112,
+      "versionName": "v14-2-g2933b34f",
+      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-arm64-v8a-release.apk"
     }
   ],
   "elementType": "File",
