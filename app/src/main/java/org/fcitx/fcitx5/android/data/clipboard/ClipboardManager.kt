@@ -22,6 +22,7 @@ import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardDatabase
 import org.fcitx.fcitx5.android.data.clipboard.db.ClipboardEntry
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
+import org.fcitx.fcitx5.android.data.syncclipboard.SyncLog
 import org.fcitx.fcitx5.android.utils.WeakHashSet
 import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.clipboardManager
@@ -193,31 +194,54 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     private var lastClipHash = 0
 
     override fun onPrimaryClipChanged() {
-        val clip = clipboardManager.primaryClip ?: return
+        // 注意：Android 10+ 后台（非前台应用/无焦点）读取剪贴板会被拦截。
+        // 这里原本是静默 return，导致"同步偶尔失效"时完全无法判断是没回调、
+        // 还是回调了但读不到内容。下面每个 return 都带日志。
+        val clip = runCatching { clipboardManager.primaryClip }.getOrElse { e ->
+            SyncLog.w("CB", "read primaryClip threw ${e.javaClass.simpleName}: ${e.message}", e)
+            return
+        }
+        if (clip == null) {
+            SyncLog.w("CB", "primaryClip=null (no focus / access denied by system)")
+            return
+        }
         /**
          * skip duplicate ClipData
          * https://developer.android.com/reference/android/content/ClipboardManager.OnPrimaryClipChangedListener#onPrimaryClipChanged()
          */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val timestamp = clip.description.timestamp
-            if (timestamp == lastClipTimestamp) return
+            if (timestamp == lastClipTimestamp) {
+                SyncLog.d("CB", "skip: duplicate event (ts=$timestamp)")
+                return
+            }
             lastClipTimestamp = timestamp
         } else {
             val timestamp = System.currentTimeMillis()
             val hash = clip.hashCode()
-            if (timestamp - lastClipTimestamp < 100L && hash == lastClipHash) return
+            if (timestamp - lastClipTimestamp < 100L && hash == lastClipHash) {
+                SyncLog.d("CB", "skip: duplicate event (legacy)")
+                return
+            }
             lastClipTimestamp = timestamp
             lastClipHash = hash
         }
+        val mimes = (0 until clip.description.mimeTypeCount)
+            .joinToString(",") { clip.description.getMimeType(it) }
+        SyncLog.d("CB", "clip changed: mime=$mimes items=${clip.itemCount}")
         launch {
             mutex.withLock {
                 // 尝试包含图片的处理
                 val entry = ClipboardEntry.fromClipData(clip, context, imageDir, transformer)
                     ?: ClipboardEntry.fromClipData(clip, transformer)
-                    ?: return@withLock
-                
+                    ?: run {
+                        SyncLog.w("CB", "skip: clip not parsable (unsupported mime)")
+                        return@withLock
+                    }
+
                 // 图片类型直接插入
                 if (entry.isImage) {
+                    SyncLog.d("CB", "image entry: path=${entry.imagePath}")
                     try {
                         val insertedEntry = clbDb.withTransaction {
                             val rowId = clbDao.insert(entry)
@@ -227,15 +251,19 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                         updateLastEntry(insertedEntry)
                         updateItemCount()
                     } catch (exception: Exception) {
-                        Timber.w("Failed to insert image entry: $exception")
+                        SyncLog.w("CB", "failed to insert image entry: $exception", exception)
                     }
                     return@withLock
                 }
-                
+
                 // 文本类型处理
-                if (entry.text.isBlank()) return@withLock
+                if (entry.text.isBlank()) {
+                    SyncLog.d("CB", "skip: blank text")
+                    return@withLock
+                }
                 try {
                     clbDao.find(entry.text, entry.sensitive)?.let {
+                        SyncLog.d("CB", "text duplicated in history (id=${it.id}, sensitive=${entry.sensitive}) ${SyncLog.textMeta(entry.text)}")
                         updateLastEntry(it.copy(timestamp = entry.timestamp))
                         clbDao.updateTime(it.id, entry.timestamp)
                         return@withLock
@@ -246,10 +274,11 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                         // new entry can be deleted immediately if clipboard limit == 0
                         clbDao.get(rowId) ?: entry
                     }
+                    SyncLog.i("CB", "text stored (id=${insertedEntry.id}, sensitive=${entry.sensitive}) ${SyncLog.textMeta(entry.text)}")
                     updateLastEntry(insertedEntry)
                     updateItemCount()
                 } catch (exception: Exception) {
-                    Timber.w("Failed to update clipboard database: $exception")
+                    SyncLog.w("CB", "failed to update db, fallback to in-memory only: $exception", exception)
                     updateLastEntry(entry)
                 }
             }

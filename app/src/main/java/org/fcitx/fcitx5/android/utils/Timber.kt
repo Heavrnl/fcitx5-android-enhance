@@ -7,6 +7,7 @@ package org.fcitx.fcitx5.android.utils
 
 import android.util.Log
 import org.fcitx.fcitx5.android.BuildConfig
+import org.fcitx.fcitx5.android.data.syncclipboard.SyncLogTree
 import timber.log.Timber
 
 class VerboseTree : Timber.DebugTree() {
@@ -28,4 +29,7 @@ fun Timber.Forest.setupForest(verbose: Boolean) {
         uprootAll()
     }
     plant(if (BuildConfig.DEBUG || verbose) VerboseTree() else ConciseTree())
+    // 剪贴板同步的日志额外落盘（release 包也写，且不受 ConciseTree 的 INFO 过滤影响）。
+    // 位置：files/logs/clipboard_sync*.log，入口：设置 -> 剪贴板同步 -> 剪贴板同步日志
+    plant(SyncLogTree())
 }

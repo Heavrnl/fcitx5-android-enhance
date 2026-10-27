@@ -11,10 +11,14 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.preference.PreferenceScreen
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreferenceFragment
+import org.fcitx.fcitx5.android.ui.main.SyncLogActivity
+import org.fcitx.fcitx5.android.utils.addPreference
+import org.fcitx.fcitx5.android.utils.startActivity
 
 class SyncClipboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInstance().syncClipboard) {
 
@@ -38,6 +42,14 @@ class SyncClipboardSettingsFragment : ManagedPreferenceFragment(AppPrefs.getInst
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         super.onCreatePreferences(savedInstanceState, rootKey)
         prefs.screenshotDetection.registerOnChangeListener(screenshotDetectionListener)
+    }
+
+    override fun onPreferenceUiCreated(screen: PreferenceScreen) {
+        super.onPreferenceUiCreated(screen)
+        // 排查"同步偶尔失效"的入口：查看落盘的本地日志（进程被杀后依然保留）
+        screen.addPreference(R.string.sync_log, R.string.sync_log_desc) {
+            startActivity<SyncLogActivity>()
+        }
     }
 
     override fun onResume() {

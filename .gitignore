@@ -102,3 +102,4 @@ lint/tmp/
 
 ### Kotlin ###
 .kotlin/
+/.workbuddy-ai

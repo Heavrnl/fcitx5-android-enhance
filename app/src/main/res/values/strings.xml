@@ -333,6 +333,10 @@
     <string name="sync_clipboard_gallery_clear_interval">Clear Interval (Days)</string>
     <string name="sync_clipboard_media_permission_title">Media Permission Required</string>
     <string name="sync_clipboard_media_permission_desc">Screenshot detection requires access to photos and media. Please grant the permission to enable this feature.</string>
+    <string name="sync_log">Clipboard sync log</string>
+    <string name="sync_log_desc">Local log kept after the process is killed. Use it to find out why a sync failed.</string>
+    <string name="sync_log_clear_confirm">Clear all sync logs?</string>
+    <string name="refresh">Refresh</string>
     <!-- Image clipboard -->
     <string name="clipboard_image">[Image] Tap to paste</string>
     <string name="clipboard_image_simple">Image</string>
@@ -377,7 +381,8 @@
     <string name="voice_input_mode_click">Click Mode</string>
     <string name="voice_input_mode_long_press">Long Press Mode</string>
     <string name="dashscope_api_key">DashScope API Key</string>
-    <string name="dashscope_api_key_summary">Model: qwen-audio-3.1-asr-flash-streaming\nCreate API Key: https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_api_key_summary">Create API Key: https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_model">Model name</string>
     <string name="dashscope_workspace_id">DashScope Workspace ID</string>
     <string name="dashscope_region">Service Region</string>
     <string name="dashscope_region_cn">Mainland China</string>

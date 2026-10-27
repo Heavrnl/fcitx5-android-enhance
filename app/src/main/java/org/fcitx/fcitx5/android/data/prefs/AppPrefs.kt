@@ -495,6 +495,11 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val dashscopeWorkspaceId = string(
             R.string.dashscope_workspace_id, "dashscope_workspace_id", ""
         )
+        // 模型名不再硬编码，用户可自行填写（例如换成别的实时 ASR 模型）；
+        // 留空则回落到 DEFAULT_DASHSCOPE_ASR_MODEL
+        val dashscopeModel = string(
+            R.string.dashscope_model, "dashscope_model", DEFAULT_DASHSCOPE_ASR_MODEL
+        )
     }
 
     enum class VoiceInputMode : ManagedPreferenceEnum {
@@ -571,6 +576,9 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
     }
 
     companion object {
+        /** DashScope 实时语音识别默认模型名，设置项里可以改成任意模型 */
+        const val DEFAULT_DASHSCOPE_ASR_MODEL = "qwen-audio-3.1-asr-flash-streaming"
+
         private var instance: AppPrefs? = null
 
         /**

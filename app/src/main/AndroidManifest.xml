@@ -68,6 +68,11 @@
             android:launchMode="singleTask"
             android:parentActivityName=".ui.main.MainActivity" />
         <activity
+            android:name=".ui.main.SyncLogActivity"
+            android:exported="false"
+            android:label="@string/sync_log"
+            android:parentActivityName=".ui.main.MainActivity" />
+        <activity
             android:name=".ui.main.settings.theme.CustomThemeActivity"
             android:configChanges="orientation|screenSize"
             android:exported="false"

@@ -66,6 +66,7 @@ class SyncClipboardClient(
      * 上传剪切板内容到服务器
      */
     suspend fun putClipboard(data: SyncClipboardData): Result<Unit> = withContext(Dispatchers.IO) {
+        val startedAt = android.os.SystemClock.elapsedRealtime()
         try {
             val url = URL("$serverUrl/SyncClipboard.json")
             val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -81,13 +82,18 @@ class SyncClipboardClient(
             connection.outputStream.bufferedWriter().use { it.write(body) }
             
             val responseCode = connection.responseCode
+            val cost = android.os.SystemClock.elapsedRealtime() - startedAt
             if (responseCode in 200..299) {
+                SyncLog.d("HTTP", "PUT /SyncClipboard.json -> $responseCode in ${cost}ms")
                 Result.success(Unit)
             } else {
+                SyncLog.w("HTTP", "PUT /SyncClipboard.json -> $responseCode in ${cost}ms (body len=${body.length})")
                 Timber.e("Failed to put clipboard: HTTP $responseCode")
                 Result.failure(IOException("HTTP error: $responseCode"))
             }
         } catch (e: Exception) {
+            val cost = android.os.SystemClock.elapsedRealtime() - startedAt
+            SyncLog.e("HTTP", "PUT /SyncClipboard.json failed in ${cost}ms: ${e.javaClass.simpleName}: ${e.message}", e)
             Timber.e(e, "Failed to put clipboard to server")
             Result.failure(e)
         }
@@ -109,12 +115,15 @@ class SyncClipboardClient(
             val responseCode = connection.responseCode
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 val bytes = connection.inputStream.readBytes()
+                SyncLog.d("HTTP", "GET /file/$filename -> 200 (${bytes.size} bytes)")
                 Result.success(bytes)
             } else {
+                SyncLog.w("HTTP", "GET /file/$filename -> $responseCode")
                 Timber.e("Failed to download file: HTTP $responseCode")
                 Result.failure(IOException("HTTP error: $responseCode"))
             }
         } catch (e: Exception) {
+            SyncLog.e("HTTP", "GET /file/$filename failed: ${e.javaClass.simpleName}: ${e.message}", e)
             Timber.e(e, "Failed to download file: $filename")
             Result.failure(e)
         }
@@ -139,12 +148,15 @@ class SyncClipboardClient(
             
             val responseCode = connection.responseCode
             if (responseCode in 200..299) {
+                SyncLog.d("HTTP", "PUT /file/$filename (${data.size} bytes) -> $responseCode")
                 Result.success(Unit)
             } else {
+                SyncLog.w("HTTP", "PUT /file/$filename (${data.size} bytes) -> $responseCode")
                 Timber.e("Failed to upload file $filename: HTTP $responseCode")
                 Result.failure(IOException("HTTP error: $responseCode"))
             }
         } catch (e: Exception) {
+            SyncLog.e("HTTP", "PUT /file/$filename failed: ${e.javaClass.simpleName}: ${e.message}", e)
             Timber.e(e, "Failed to upload file: $filename")
             Result.failure(e)
         }

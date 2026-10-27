@@ -134,6 +134,10 @@ class VoiceRecognizer(
     private fun connectWebSocket(apiKey: String, workspaceId: String) {
         Timber.i("connectWebSocket: apiKey length = ${apiKey.length}, startsWith = ${apiKey.take(4)}")
         val region = AppPrefs.getInstance().voiceInput.dashscopeRegion.getValue()
+        // 模型名由设置项决定，留空时回落到默认值（不再硬编码在请求体里）
+        val model = AppPrefs.getInstance().voiceInput.dashscopeModel.getValue().trim()
+            .ifBlank { AppPrefs.DEFAULT_DASHSCOPE_ASR_MODEL }
+        Timber.i("connectWebSocket: model = $model")
         val domain = if (region == AppPrefs.DashScopeRegion.International) {
             "$workspaceId.ap-southeast-1.maas.aliyuncs.com"
         } else {
@@ -160,7 +164,7 @@ class VoiceRecognizer(
                         put("task_group", "audio")
                         put("task", "asr")
                         put("function", "recognition")
-                        put("model", "qwen-audio-3.1-asr-flash-streaming")
+                        put("model", model)
                         put("parameters", JSONObject().apply {
                             put("format", "pcm")
                             put("sample_rate", sampleRate)

@@ -32,6 +32,9 @@ import java.security.MessageDigest
  */
 object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
 
+    /** 远端内容刚写入本地剪贴板后的回显去重窗口（毫秒） */
+    private const val ECHO_GUARD_WINDOW_MS = 3_000L
+
     private val prefs = AppPrefs.getInstance().syncClipboard
     private val clipboardManager = appContext.clipboardManager
     
@@ -63,6 +66,21 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
     }
 
     fun init() {
+        SyncLog.i("Sync", "init: pid=${android.os.Process.myPid()}")
+        SyncLog.logConfigSnapshot(
+            enabled = prefs.enabled.getValue(),
+            serverUrl = prefs.serverUrl.getValue(),
+            username = prefs.username.getValue(),
+            password = prefs.password.getValue()
+        )
+        SyncLog.i(
+            "Sync",
+            "flags: screenshotDetection=${prefs.screenshotDetection.getValue()} " +
+                "autoUploadShot=${prefs.screenshotAutoUpload.getValue()} " +
+                "saveToGallery=${prefs.saveToGallery.getValue()} " +
+                "autoClearGallery=${prefs.autoClearGallery.getValue()} " +
+                "clearInterval=${prefs.galleryClearInterval.getValue()}d"
+        )
         Timber.i("SyncClipboardManager: init called")
         prefs.enabled.registerOnChangeListener(enabledListener)
         
@@ -203,32 +221,35 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
     private val pendingImageEchoes = java.util.Collections.synchronizedSet(HashSet<String>())
 
     private val clipboardListener = ClipboardManager.OnClipboardUpdateListener { entry ->
-        // 仅处理文本更新 (图片目前似乎是手动或 separate logic handles?)
-        // 实际上 SyncClipboardManager 原有逻辑也没有自动上传图片
-        // 只有手动上传 (uploadLatestImage)
-        if (prefs.enabled.getValue() && !entry.isImage) {
-             val text = entry.text
-             if (text.isNotBlank()) {
-                 // 避免循环：如果我们刚刚收到这个文本，就不回传了
-                 // 但 handleProfileChanged 已经处理了 setLocalClipboard
-                 // ClipboardManager 会再次回调 listener
-                 // 我们需要区分来源
-                 
-                 // 如果文本在 pendingEchoes 中，说明是我们发的（且收到了回显），或者是刚刚收到的
-                 // 但这里是 *本地* 更新触发的
-                 // 如果 handleProfileChanged 调用了 setLocalClipboard -> trigger listener -> here
-                 // 此时 pendingEchoes 应该包含该文本 (如果是 echo)
-                 // 或者是我们刚收到的
-                 
-                 // 简化逻辑：如果内容与我们最后一次收到的内容相同，忽略
-                 if (text == lastReceivedText) {
-                     return@OnClipboardUpdateListener
-                 }
-                 
-                 launch {
-                     uploadText(text)
-                 }
-             }
+        // 本机剪贴板变化 -> 上传。这里每一个"放弃上传"的分支都必须留痕，
+        // 否则出问题时无法区分"没触发"和"触发了但被过滤"。
+        val detail = if (entry.isImage) "path=${entry.imagePath}" else SyncLog.textMeta(entry.text)
+        SyncLog.d("UP", "local clip update: image=${entry.isImage} sensitive=${entry.sensitive} $detail")
+        // 仅处理文本更新 (图片目前是手动上传)
+        if (!prefs.enabled.getValue()) {
+            SyncLog.d("UP", "skip: feature disabled")
+            return@OnClipboardUpdateListener
+        }
+        if (entry.isImage) {
+            SyncLog.d("UP", "skip: image entry (images are uploaded manually / by screenshot detector)")
+            return@OnClipboardUpdateListener
+        }
+        val text = entry.text
+        if (text.isBlank()) {
+            SyncLog.d("UP", "skip: blank text")
+            return@OnClipboardUpdateListener
+        }
+        // 避免回环：只把"刚刚应用远端内容"这一小段时间内的相同文本当成回显。
+        // 之前是无条件用 lastReceivedText 去重，导致用户过一会儿再手动复制同一段文本时
+        // 永远传不上去（日志里表现为 skip: identical to lastReceivedText），也是"偶发不生效"的成因之一。
+        if (text == lastReceivedText &&
+            android.os.SystemClock.elapsedRealtime() - lastReceivedTextAt < ECHO_GUARD_WINDOW_MS
+        ) {
+            SyncLog.d("UP", "skip: echo of just-applied remote text ${SyncLog.textMeta(text)}")
+            return@OnClipboardUpdateListener
+        }
+        launch {
+            uploadText(text)
         }
     }
 
@@ -237,11 +258,13 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
 
     private fun startSync() {
         Timber.i("SyncClipboardManager: attempting to start sync")
+        SyncLog.i("Sync", "startSync requested")
         signalRClient?.disconnect()
         signalRClient = createSignalRClient()
         client = createClient()  // 初始化 HTTP 客户端
         
         if (signalRClient == null) {
+            SyncLog.w("Sync", "startSync aborted: missing server url / username / password")
             Timber.w("SyncClipboardManager: failed to create client (missing config?)")
             return
         }
@@ -253,23 +276,28 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         }
         
         signalRClient?.onConnected = {
+            SyncLog.i("WS", "connected")
             Timber.i("SyncClipboard: WebSocket connected")
         }
         
         signalRClient?.onDisconnected = { error ->
             if (error != null) {
+                SyncLog.w("WS", "disconnected: ${error.javaClass.simpleName}: ${error.message}")
                 Timber.w(error, "SyncClipboard: WebSocket disconnected")
             } else {
+                SyncLog.i("WS", "disconnected (clean)")
                 Timber.i("SyncClipboard: WebSocket disconnected (clean)")
             }
         }
         
         signalRClient?.connect()
+        SyncLog.i("Sync", "started with WebSocket")
         Timber.i("SyncClipboard: Started with WebSocket")
     }
 
     private fun stopSync() {
         Timber.i("SyncClipboardManager: stopSync called")
+        SyncLog.i("Sync", "stopSync called by user/config change")
         signalRClient?.disconnect()
         signalRClient = null
         client = null
@@ -280,64 +308,101 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
      * 处理服务器推送的 ProfileDto
      */
     private suspend fun handleProfileChanged(profile: ProfileDto) {
-        Timber.d("SyncClipboardManager: handleProfileChanged: type=${profile.type}, text=${profile.text?.take(20)}..., dataName=${profile.dataName}")
+        // 注意：不要再把 text 前 N 个字符写进日志，落盘日志要避免泄露剪贴板内容
+        Timber.d("SyncClipboardManager: handleProfileChanged: type=${profile.type}, dataName=${profile.dataName}")
+        SyncLog.d("DOWN", "profile: type=${profile.type} hasData=${profile.hasData} dataName=${profile.dataName} ${SyncLog.textMeta(profile.text)}")
         try {
             when (profile.type) {
                 ProfileDto.TYPE_TEXT -> {
                     val text = profile.text
                     // 检查是否是我们自己发送的回显
                     if (pendingEchoes.remove(text)) {
+                        SyncLog.d("DOWN", "skip: own echo (pendingEchoes) ${SyncLog.textMeta(text)}")
                         Timber.d("SyncClipboard: Ignoring echo")
                         return
                     }
 
-                    if (!text.isNullOrBlank() && text != getLocalClipboardText()) {
-                        lastReceivedText = text
-                        setLocalClipboard(text)
-                        Timber.d("SyncClipboard: Received text from server")
+                    if (text.isNullOrBlank()) {
+                        SyncLog.w("DOWN", "skip: empty text in profile")
+                        return
                     }
+                    val local = getLocalClipboardText()
+                    if (text == local) {
+                        SyncLog.d("DOWN", "skip: already equal to local clipboard ${SyncLog.textMeta(text)}")
+                        return
+                    }
+
+                    lastReceivedText = text
+                    lastReceivedTextAt = android.os.SystemClock.elapsedRealtime()
+                    SyncLog.i("DOWN", "apply remote text -> local clipboard ${SyncLog.textMeta(text)} pendingEchoes=${pendingEchoes.size}")
+                    setLocalClipboard(text)
                 }
                 ProfileDto.TYPE_IMAGE, ProfileDto.TYPE_FILE -> {
                     val dataName = profile.dataName
-                    if (!dataName.isNullOrBlank() && profile.hasData) {
-                        // 检查是否是我们自己上传的图片回显
-                        if (pendingImageEchoes.remove(dataName)) {
-                            Timber.d("SyncClipboard: Ignoring image echo: $dataName")
-                            return
-                        }
-                        val httpClient = client ?: createClient() ?: return
-                        val imageResult = httpClient.downloadFile(dataName)
-                        imageResult.onSuccess { bytes ->
-                            saveImageToClipboardHistory(bytes, dataName)
-                            if (prefs.saveToGallery.getValue()) {
-                                // 重命名文件，避免以 "screenshot" 开头
-                                // 从而不会被 ScreenshotDetector 误识别为新截图导致无限循环
-                                val galleryName = if (dataName.lowercase().startsWith("screenshot")) {
-                                    "sync_$dataName"
-                                } else {
-                                    dataName
-                                }
-                                saveToGallery(bytes, galleryName)
+                    if (dataName.isNullOrBlank() || !profile.hasData) {
+                        SyncLog.w("DOWN", "skip: file profile without dataName/hasData (name=$dataName hasData=${profile.hasData})")
+                        return
+                    }
+                    // 检查是否是我们自己上传的图片回显
+                    if (pendingImageEchoes.remove(dataName)) {
+                        SyncLog.d("DOWN", "skip: own image echo $dataName")
+                        Timber.d("SyncClipboard: Ignoring image echo: $dataName")
+                        return
+                    }
+                    val httpClient = client ?: createClient()
+                    if (httpClient == null) {
+                        SyncLog.w("DOWN", "skip: no http client (missing config)")
+                        return
+                    }
+                    SyncLog.i("DOWN", "downloading file $dataName ...")
+                    val startedAt = android.os.SystemClock.elapsedRealtime()
+                    val imageResult = httpClient.downloadFile(dataName)
+                    val cost = android.os.SystemClock.elapsedRealtime() - startedAt
+                    imageResult.onSuccess { bytes ->
+                        SyncLog.i("DOWN", "downloaded $dataName (${bytes.size} bytes) in ${cost}ms")
+                        saveImageToClipboardHistory(bytes, dataName)
+                        if (prefs.saveToGallery.getValue()) {
+                            // 重命名文件，避免以 "screenshot" 开头
+                            // 从而不会被 ScreenshotDetector 误识别为新截图导致无限循环
+                            val galleryName = if (dataName.lowercase().startsWith("screenshot")) {
+                                "sync_$dataName"
+                            } else {
+                                dataName
                             }
-                            Timber.d("SyncClipboard: Downloaded file from server: $dataName")
+                            saveToGallery(bytes, galleryName)
                         }
+                        Timber.d("SyncClipboard: Downloaded file from server: $dataName")
+                    }.onFailure { e ->
+                        SyncLog.w("DOWN", "download failed $dataName in ${cost}ms: ${e.javaClass.simpleName}: ${e.message}", e)
                     }
                 }
             }
         } catch (e: Exception) {
+            SyncLog.e("DOWN", "error handling profile: ${e.javaClass.simpleName}: ${e.message}", e)
             Timber.e(e, "SyncClipboard: Error handling profile change")
         }
     }
 
     private var lastReceivedText: String? = null
+    /** lastReceivedText 写入时刻（elapsedRealtime），回显去重只在短窗口内有效 */
+    private var lastReceivedTextAt = 0L
 
     private suspend fun uploadText(text: String) {
-        val client = client ?: createClient() ?: return
+        val client = client ?: createClient()
+        if (client == null) {
+            SyncLog.w("UP", "aborted: no http client (server url / username / password missing)")
+            return
+        }
+        SyncLog.i("UP", "PUT /SyncClipboard.json ${SyncLog.textMeta(text)}")
         pendingEchoes.add(text)
+        val startedAt = android.os.SystemClock.elapsedRealtime()
         val result = client.putClipboard(SyncClipboardData.text(text))
+        val cost = android.os.SystemClock.elapsedRealtime() - startedAt
         if (result.isSuccess) {
-            Timber.d("SyncClipboard: Uploaded text: ${text.take(20)}...")
+            SyncLog.i("UP", "ok in ${cost}ms ${SyncLog.textMeta(text)}")
+            Timber.d("SyncClipboard: Uploaded text in ${cost}ms")
         } else {
+            SyncLog.w("UP", "failed in ${cost}ms: ${result.exceptionOrNull()?.javaClass?.simpleName}: ${result.exceptionOrNull()?.message}")
             Timber.w("SyncClipboard: Failed to upload text")
             pendingEchoes.remove(text)
         }
@@ -368,9 +433,13 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
             val entry = ClipboardEntry.fromImageBytes(bytes, imageDir, "image/png")
             if (entry != null) {
                 ClipboardManager.insertImageEntry(entry)
+                SyncLog.i("DOWN", "image saved to clipboard history name=$filename path=${entry.imagePath}")
                 Timber.d("SyncClipboard: Image saved to clipboard history")
+            } else {
+                SyncLog.w("DOWN", "image decode failed, not saved: name=$filename size=${bytes.size}")
             }
         } catch (e: Exception) {
+            SyncLog.e("DOWN", "failed to save image to clipboard history: ${e.message}", e)
             Timber.e(e, "Failed to save image to clipboard history")
         }
     }
@@ -379,13 +448,18 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
      * 上传图片到服务器
      */
     suspend fun uploadImage(bitmap: Bitmap, filename: String = "image.png"): Boolean {
-        val client = client ?: createClient() ?: return false
+        val client = client ?: createClient()
+        if (client == null) {
+            SyncLog.w("UP", "image aborted: no http client (missing config)")
+            return false
+        }
         
         val bytes = ByteArrayOutputStream().use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
             stream.toByteArray()
         }
         
+        SyncLog.i("UP", "image upload start name=$filename size=${bytes.size} ${bitmap.width}x${bitmap.height}")
         val hash = calculateServerHash(filename, bytes)
         val uploadResult = client.uploadFile(filename, bytes)
         
@@ -395,11 +469,15 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         return uploadResult.map {
             val data = SyncClipboardData.image(hash, filename)
             val success = client.putClipboard(data).isSuccess
-            if (!success) {
+            if (success) {
+                SyncLog.i("UP", "image upload ok name=$filename")
+            } else {
+                SyncLog.w("UP", "image upload failed at putClipboard name=$filename")
                 pendingImageEchoes.remove(filename)
             }
             success
         }.getOrElse {
+            SyncLog.w("UP", "image upload failed at uploadFile name=$filename: ${it.javaClass.simpleName}: ${it.message}")
             pendingImageEchoes.remove(filename)
             false
         }
@@ -409,16 +487,31 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
      * 上传剪贴板中最新的图片到服务器
      */
     suspend fun uploadLatestImage(): Boolean {
-        val lastEntry = ClipboardManager.lastEntry ?: return false
-        if (!lastEntry.isImage) return false
+        val lastEntry = ClipboardManager.lastEntry
+        if (lastEntry == null) {
+            SyncLog.w("UP", "latest image aborted: no clipboard entry")
+            return false
+        }
+        if (!lastEntry.isImage) {
+            SyncLog.w("UP", "latest image aborted: last entry is text, not image")
+            return false
+        }
         
         val file = File(lastEntry.imagePath)
-        if (!file.exists()) return false
+        if (!file.exists()) {
+            SyncLog.w("UP", "latest image aborted: file missing ${lastEntry.imagePath}")
+            return false
+        }
         
         val bytes = file.readBytes()
-        val client = client ?: createClient() ?: return false
+        val client = client ?: createClient()
+        if (client == null) {
+            SyncLog.w("UP", "latest image aborted: no http client (missing config)")
+            return false
+        }
         
         val filename = "sync_${System.currentTimeMillis()}.png"
+        SyncLog.i("UP", "latest image upload start name=$filename size=${bytes.size}")
         val hash = calculateServerHash(filename, bytes)
         
         // 记录上传的文件名，用于过滤服务器推回来的回显
@@ -428,11 +521,15 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         return uploadResult.map {
             val data = SyncClipboardData.image(hash, filename)
             val success = client.putClipboard(data).isSuccess
-            if (!success) {
+            if (success) {
+                SyncLog.i("UP", "latest image upload ok name=$filename")
+            } else {
+                SyncLog.w("UP", "latest image upload failed at putClipboard name=$filename")
                 pendingImageEchoes.remove(filename)
             }
             success
         }.getOrElse {
+            SyncLog.w("UP", "latest image upload failed at uploadFile name=$filename: ${it.javaClass.simpleName}: ${it.message}")
             pendingImageEchoes.remove(filename)
             false
         }
@@ -452,16 +549,27 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         // 这些数据是在 IME 获得焦点时通过 OnPrimaryClipChangedListener 捕获的
         val lastEntry = ClipboardManager.lastEntry
         if (lastEntry != null && !lastEntry.isImage && lastEntry.text.isNotBlank()) {
+            SyncLog.d("CB", "local text source=cache ${SyncLog.textMeta(lastEntry.text)}")
             return lastEntry.text
         }
         
         // 如果内部缓存为空，尝试直接读取系统剪贴板（仅在 IME 获得焦点时有效）
         return try {
-            val clip = clipboardManager.primaryClip ?: return null
-            if (clip.itemCount == 0) return null
-            clip.getItemAt(0)?.text?.toString()
+            val clip = clipboardManager.primaryClip
+            if (clip == null) {
+                SyncLog.d("CB", "local text source=none (cache empty, primaryClip=null)")
+                return null
+            }
+            if (clip.itemCount == 0) {
+                SyncLog.d("CB", "local text source=none (cache empty, clip has 0 items)")
+                return null
+            }
+            clip.getItemAt(0)?.text?.toString()?.also {
+                SyncLog.d("CB", "local text source=system ${SyncLog.textMeta(it)}")
+            }
         } catch (e: Exception) {
             // Android 10+ 在后台时会抛出 SecurityException
+            SyncLog.w("CB", "cannot access system clipboard: ${e.javaClass.simpleName}: ${e.message}")
             Timber.d("Cannot access system clipboard (expected on Android 10+ in background)")
             null
         }
@@ -471,7 +579,9 @@ object SyncClipboardManager : CoroutineScope by CoroutineScope(SupervisorJob() +
         try {
             val clip = ClipData.newPlainText("SyncClipboard", text)
             clipboardManager.setPrimaryClip(clip)
+            SyncLog.i("DOWN", "setPrimaryClip ok ${SyncLog.textMeta(text)}")
         } catch (e: Exception) {
+            SyncLog.e("DOWN", "setPrimaryClip failed: ${e.javaClass.simpleName}: ${e.message}", e)
             Timber.e(e, "Failed to set local clipboard")
         }
     }

@@ -332,6 +332,10 @@
     <string name="sync_clipboard_gallery_clear_interval">清理间隔（天）</string>
     <string name="sync_clipboard_media_permission_title">需要媒体访问权限</string>
     <string name="sync_clipboard_media_permission_desc">截图检测需要访问照片和媒体的权限。请授予权限以启用此功能。</string>
+    <string name="sync_log">剪贴板同步日志</string>
+    <string name="sync_log_desc">本地持久化日志（进程被杀也还在），用于排查同步失效的原因</string>
+    <string name="sync_log_clear_confirm">清空全部同步日志？</string>
+    <string name="refresh">刷新</string>
     <!-- Image clipboard -->
     <string name="clipboard_image">[图片] 点击粘贴</string>
     <string name="clipboard_image_simple">图片</string>
@@ -377,7 +381,8 @@
     <string name="voice_input_mode_click">点击模式</string>
     <string name="voice_input_mode_long_press">长按模式</string>
     <string name="dashscope_api_key">DashScope API Key</string>
-    <string name="dashscope_api_key_summary">模型：qwen-audio-3.1-asr-flash-streaming\n创建 API Key：https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_api_key_summary">创建 API Key：https://modelstudio.console.alibabacloud.com/</string>
+    <string name="dashscope_model">模型名称</string>
     <string name="dashscope_workspace_id">DashScope 工作空间 ID</string>
     <string name="dashscope_region">服务区域</string>
     <string name="dashscope_region_cn">中国内地</string>
