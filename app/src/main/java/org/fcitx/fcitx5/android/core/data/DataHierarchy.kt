@@ -56,6 +56,24 @@ class DataHierarchy {
     }
 
     /**
+     * Visit every file in this hierarchy
+     *
+     * @param block receives (path, sha256, source). sha256 is empty for directories.
+     */
+    fun forEachFile(block: (path: String, sha256: SHA256, src: FileSource) -> Unit) {
+        files.forEach { (path, value) -> block(path, value.first, value.second) }
+    }
+
+    /**
+     * Visit every symlink in this hierarchy
+     *
+     * @param block receives (target, source, src)
+     */
+    fun forEachSymlink(block: (target: String, source: String, src: FileSource) -> Unit) {
+        symlinks.forEach { (target, value) -> block(target, value.first, value.second) }
+    }
+
+    /**
      * Create a [DataDescriptor] from the file list, discarding other information
      */
     fun downToDataDescriptor() =

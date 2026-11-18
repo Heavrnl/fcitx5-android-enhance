@@ -12,52 +12,13 @@
       "filters": [
         {
           "filterType": "ABI",
-          "value": "armeabi-v7a"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 111,
-      "versionName": "v14-2-g2933b34f",
-      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-armeabi-v7a-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86_64"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 114,
-      "versionName": "v14-2-g2933b34f",
-      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-x86_64-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
-          "value": "x86"
-        }
-      ],
-      "attributes": [],
-      "versionCode": 113,
-      "versionName": "v14-2-g2933b34f",
-      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-x86-release.apk"
-    },
-    {
-      "type": "ONE_OF_MANY",
-      "filters": [
-        {
-          "filterType": "ABI",
           "value": "arm64-v8a"
         }
       ],
       "attributes": [],
-      "versionCode": 112,
-      "versionName": "v14-2-g2933b34f",
-      "outputFile": "org.fcitx.fcitx5.android-v14-2-g2933b34f-arm64-v8a-release.apk"
+      "versionCode": 122,
+      "versionName": "0.1.4-0-gde767880",
+      "outputFile": "org.fcitx.fcitx5.android-0.1.4-0-gde767880-arm64-v8a-release.apk"
     }
   ],
   "elementType": "File",

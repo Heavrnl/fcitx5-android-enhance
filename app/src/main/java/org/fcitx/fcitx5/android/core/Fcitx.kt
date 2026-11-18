@@ -241,7 +241,7 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
             extData: String,
             extCache: String,
             extDomains: Array<String>
-        )
+        ): Boolean
 
         @JvmStatic
         external fun getFcitxTranslation(domain: String, str: String): String
@@ -441,15 +441,27 @@ class Fcitx(private val context: Context) : FcitxAPI, FcitxLifecycleOwner {
                extDomains=${extDomains.joinToString()}
             """.trimIndent()
             )
-            with(FcitxApplication.getInstance().directBootAwareContext) {
-                startupFcitx(
-                    locale,
-                    dataDir,
-                    nativeLibDir.toString(),
-                    (getExternalFilesDir(null) ?: filesDir).absolutePath,
-                    (externalCacheDir ?: cacheDir).absolutePath,
-                    extDomains.toTypedArray()
-                )
+            // A `false` return value means the fcitx data directory is broken
+            // (e.g. addon configuration files were wiped by a storage cleaner),
+            // in which case we rebuild it once and try again instead of crashing.
+            fun tryStartFcitx(): Boolean =
+                with(FcitxApplication.getInstance().directBootAwareContext) {
+                    startupFcitx(
+                        locale,
+                        dataDir,
+                        nativeLibDir.toString(),
+                        (getExternalFilesDir(null) ?: filesDir).absolutePath,
+                        (externalCacheDir ?: cacheDir).absolutePath,
+                        extDomains.toTypedArray()
+                    )
+                }
+
+            if (!tryStartFcitx()) {
+                Timber.e("Failed to start fcitx, rebuilding its data directory")
+                DataManager.deleteAndSync()
+                check(tryStartFcitx()) {
+                    "Failed to start fcitx even after rebuilding its data directory"
+                }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 lifecycle.launchWhenReady {

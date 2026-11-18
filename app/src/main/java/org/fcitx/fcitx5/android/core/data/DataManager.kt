@@ -233,10 +233,34 @@ object DataManager {
 
         Timber.d("Hierarchy created")
 
+        // Storage cleaners or interrupted writes may delete files behind our back while
+        // the descriptor still claims they are in place. The diff alone would never
+        // restore them, leaving fcitx without any addon configuration, which crashes
+        // the native library on startup. Verify the hierarchy and repair it here.
+        val repairs = mutableListOf<FileAction>()
+        newHierarchy.forEachFile { path, sha256, src ->
+            if (sha256.isEmpty()) return@forEachFile
+            val file = dataDir.resolve(path)
+            if (!file.isFile || file.length() == 0L) {
+                repairs += FileAction.CreateFile(path, src)
+            }
+        }
+        newHierarchy.forEachSymlink { target, source, _ ->
+            if (!dataDir.resolve(target).exists()) {
+                repairs += FileAction.CreateSymlink(target, source)
+            }
+        }
+        if (repairs.isNotEmpty()) {
+            Timber.w("Found ${repairs.size} missing data file(s), restoring them")
+            repairs.forEach { Timber.w("Missing: $it") }
+        }
+
         // Compute the difference of the created one and the old one
         // Run actions to migrate to the new hierarchy
-        DataHierarchy.diff(oldDescriptor, newHierarchy).sortedByDescending { it.ordinal }.forEach {
-            Timber.d("Action: $it")
+        (DataHierarchy.diff(oldDescriptor, newHierarchy) + repairs)
+            .distinctBy { it.path }
+            .sortedByDescending { it.ordinal }.forEach {
+                Timber.d("Action: $it")
             when (it) {
                 is FileAction.CreateFile -> {
                     val assets = if (it.src is FileSource.Plugin)

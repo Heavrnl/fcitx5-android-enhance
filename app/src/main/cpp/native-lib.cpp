@@ -81,7 +81,7 @@ public:
         return uv_run(get_event_base(), UV_RUN_ONCE);
     }
 
-    void startup(const std::function<void(fcitx::AddonInstance *)> &setupCallback) {
+    bool startup(const std::function<void(fcitx::AddonInstance *)> &setupCallback) {
         p_instance = std::make_unique<fcitx::Instance>(0, nullptr);
         p_instance->addonManager().registerLoader(std::make_unique<fcitx::AndroidSharedLibraryLoader>());
         p_dispatcher = std::make_unique<fcitx::EventDispatcher>();
@@ -89,10 +89,20 @@ public:
         p_instance->initialize();
         auto &addonMgr = p_instance->addonManager();
         p_frontend = addonMgr.addon("androidfrontend");
+        if (!p_frontend) {
+            // Almost always means the fcitx data directory is incomplete: no addon
+            // configuration was found, so nothing could be registered or loaded.
+            // Bail out instead of dereferencing a null addon from the setup callback.
+            FCITX_ERROR() << "Failed to load addon \"androidfrontend\", "
+                             "the fcitx data directory is probably incomplete";
+            resetGlobalPointers();
+            return false;
+        }
         p_quickphrase = addonMgr.addon("quickphrase");
         p_unicode = addonMgr.addon("unicode");
         p_clipboard = addonMgr.addon("clipboard", true);
         setupCallback(p_frontend);
+        return true;
     }
 
     void reloadConfig() {
@@ -502,7 +512,7 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_setupLogStream(JNIEnv *env, jclass claz
 }
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jboolean JNICALL
 Java_org_fcitx_fcitx5_android_core_Fcitx_startupFcitx(
         JNIEnv *env, jclass clazz,
         jstring locale,
@@ -513,7 +523,7 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_startupFcitx(
         jobjectArray extDomains) {
     if (Fcitx::Instance().isRunning()) {
         FCITX_ERROR() << "Fcitx is already running!";
-        return;
+        return JNI_TRUE;
     }
     FCITX_INFO() << "Starting...";
 
@@ -722,7 +732,12 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_startupFcitx(
         androidfrontend->template call<fcitx::IAndroidFrontend::setSwitchInputMethodCallback>(switchInputMethodCallback);
         androidfrontend->template call<fcitx::IAndroidFrontend::setToastCallback>(toastCallback);
     });
+    if (!Fcitx::Instance().isRunning()) {
+        FCITX_ERROR() << "Startup failed, fcitx is not running";
+        return JNI_FALSE;
+    }
     FCITX_INFO() << "Finishing startup";
+    return JNI_TRUE;
 }
 
 extern "C"
@@ -807,6 +822,7 @@ Java_org_fcitx_fcitx5_android_core_Fcitx_resetInputContext(JNIEnv *env, jclass c
 extern "C"
 JNIEXPORT void JNICALL
 Java_org_fcitx_fcitx5_android_core_Fcitx_repositionCursor(JNIEnv *env, jclass clazz, jint position) {
+    RETURN_IF_NOT_RUNNING
     FCITX_DEBUG() << "repositionCursor: to " << position;
     Fcitx::Instance().repositionCursor(position);
 }

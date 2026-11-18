@@ -67,7 +67,16 @@ class FcitxDispatcher(private val controller: FcitxController) : CoroutineDispat
             runningLock.withLock {
                 if (isRunning.compareAndSet(false, true)) {
                     Timber.d("nativeStartup()")
-                    controller.nativeStartup()
+                    try {
+                        controller.nativeStartup()
+                    } catch (t: Throwable) {
+                        // Never take the whole process down because fcitx could not
+                        // start; the input method will be restarted by the system.
+                        Timber.e(t, "Failed to start fcitx")
+                        isRunning.set(false)
+                        runCatching { controller.nativeExit() }
+                        return@withLock
+                    }
                     while (isActive && isRunning.get()) {
                         // blocking...
                         controller.nativeLoopOnce()
