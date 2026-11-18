@@ -6,6 +6,7 @@ package org.fcitx.fcitx5.android.data.verification
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import org.fcitx.fcitx5.android.data.syncclipboard.SyncLog
 import timber.log.Timber
 
 /**
@@ -40,7 +41,12 @@ class VerificationCodeNotificationListener : NotificationListenerService() {
             // 检查是否包含验证码关键词并处理
             if (VerificationCodeManager.containsKeywords(fullText)) {
                 Timber.d("Verification code keywords detected, processing...")
+                SyncLog.d("OTP", "notification matched keywords pkg=${sbn.packageName} len=${fullText.length}")
                 VerificationCodeManager.processNotification(fullText)
+            } else if (fullText.contains("sensitive notification", ignoreCase = true) ||
+                fullText.contains("敏感通知")
+            ) {
+                SyncLog.w("OTP", "notification redacted by Android 15 OTP guard pkg=${sbn.packageName}")
             }
 
         } catch (e: Exception) {
@@ -60,5 +66,6 @@ class VerificationCodeNotificationListener : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Timber.d("Notification listener disconnected")
+        VerificationCodeManager.ensureListenerBound()
     }
 }

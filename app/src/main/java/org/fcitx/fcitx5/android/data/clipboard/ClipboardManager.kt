@@ -4,10 +4,14 @@
  */
 package org.fcitx.fcitx5.android.data.clipboard
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
+import android.os.SystemClock
 import androidx.annotation.Keep
+import androidx.core.content.edit
 import androidx.room.Room
 import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineScope
@@ -28,12 +32,19 @@ import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.clipboardManager
 import timber.log.Timber
 import java.io.File
+import java.security.MessageDigest
 
 object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
+    private const val STATE_PREFS_NAME = "sync_clipboard_state"
+    private const val KEY_LAST_CLIP_TS = "last_clip_ts"
+    private const val KEY_LAST_CLIP_HASH = "last_clip_hash"
+
     private lateinit var clbDb: ClipboardDatabase
     private lateinit var clbDao: ClipboardDao
     private lateinit var context: Context
+    private var statePrefs: SharedPreferences? = null
+    private var initWallTimeMs: Long = 0L
 
     // 图片存储目录
     val imageDir: File
@@ -55,6 +66,7 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
     }
 
     private val onUpdateListeners = WeakHashSet<OnClipboardUpdateListener>()
+    private val onLocalCopyListeners = WeakHashSet<OnClipboardUpdateListener>()
 
     var transformer: ((String) -> String)? = null
 
@@ -64,6 +76,17 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
 
     fun removeOnUpdateListener(listener: OnClipboardUpdateListener) {
         onUpdateListeners.remove(listener)
+    }
+
+    /**
+     * 仅订阅本机真实复制产生的新剪贴板条目，远端同步下发写入的条目不会触发此回调。
+     */
+    fun addOnLocalCopyListener(listener: OnClipboardUpdateListener) {
+        onLocalCopyListeners.add(listener)
+    }
+
+    fun removeOnLocalCopyListener(listener: OnClipboardUpdateListener) {
+        onLocalCopyListeners.remove(listener)
     }
 
     private val enabledPref = AppPrefs.getInstance().clipboard.clipboardListening
@@ -86,13 +109,20 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
 
     var lastEntry: ClipboardEntry? = null
 
-    private fun updateLastEntry(entry: ClipboardEntry) {
+    private fun updateLastEntry(entry: ClipboardEntry, notifyLocalCopy: Boolean) {
         lastEntry = entry
         onUpdateListeners.forEach { it.onUpdate(entry) }
+        if (notifyLocalCopy) {
+            onLocalCopyListeners.forEach { it.onUpdate(entry) }
+        }
     }
 
     fun init(context: Context) {
         this.context = context
+        this.initWallTimeMs = System.currentTimeMillis()
+        this.statePrefs = runCatching {
+            context.getSharedPreferences(STATE_PREFS_NAME, Context.MODE_PRIVATE)
+        }.getOrNull()
         clbDb = Room
             .databaseBuilder(context, ClipboardDatabase::class.java, "clbdb")
             // allow wipe the database instead of crashing when downgrade
@@ -118,7 +148,7 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
 
     suspend fun updateText(id: Int, text: String) {
         lastEntry?.let {
-            if (id == it.id) updateLastEntry(it.copy(text = text))
+            if (id == it.id) updateLastEntry(it.copy(text = text), notifyLocalCopy = false)
         }
         clbDao.updateText(id, text)
     }
@@ -180,7 +210,7 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                     removeOutdated()
                     clbDao.get(rowId) ?: entry
                 }
-                updateLastEntry(insertedEntry)
+                updateLastEntry(insertedEntry, notifyLocalCopy = false)
                 updateItemCount()
                 insertedEntry
             } catch (e: Exception) {
@@ -192,43 +222,215 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
 
     private var lastClipTimestamp = -1L
     private var lastClipHash = 0
+    private var lastProcessedTextHash = ""
 
-    override fun onPrimaryClipChanged() {
-        // 注意：Android 10+ 后台（非前台应用/无焦点）读取剪贴板会被拦截。
-        // 这里原本是静默 return，导致"同步偶尔失效"时完全无法判断是没回调、
-        // 还是回调了但读不到内容。下面每个 return 都带日志。
+    // 记录后台因无焦点被系统拦截的剪贴板变更，以便解锁或弹出键盘时主动补读上传
+    @Volatile
+    private var pendingBackgroundClipSync = false
+
+    @Volatile
+    private var pendingMissedClipAt = 0L
+
+    @Volatile
+    private var lastCompensationCheckAt = 0L
+
+    // 记录最近一次由本应用主动写入系统剪贴板的文本（远端同步或提取的验证码），
+    // 防止紧随其后的系统回调或补偿逻辑重复入库或二次上传
+    @Volatile
+    private var lastSelfAppliedText: String? = null
+
+    @Volatile
+    private var lastSelfAppliedClipAt = 0L
+
+    fun markRemoteTextApplied(text: String) {
+        markSelfAppliedText(text)
+    }
+
+    fun markSelfAppliedText(text: String) {
+        lastSelfAppliedText = text
+        lastSelfAppliedClipAt = SystemClock.elapsedRealtime()
+    }
+
+    /**
+     * 远端文本写入系统剪贴板后，同步写入输入法剪贴板历史，
+     * 避免部分 ROM 禁止后台读取 primaryClip 时导致历史面板缺少同步记录。
+     */
+    suspend fun recordRemoteText(text: String) {
+        recordTextDirectly(text, logTag = "recordRemoteText")
+    }
+
+    /**
+     * 验证码写入系统剪贴板后直接落库（不走 onLocalCopyListeners），避免息屏时后台读剪贴板被系统拦截。
+     */
+    suspend fun recordVerificationCode(code: String) {
+        markSelfAppliedText(code)
+        recordTextDirectly(code, logTag = "recordVerificationCode")
+    }
+
+    private suspend fun recordTextDirectly(text: String, logTag: String) {
+        if (text.isBlank()) return
+        // 若刚好是刚才自己 setPrimaryClip 触发了系统剪贴板权限检查，尝试顺便对齐时间戳
+        val sysTs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching { clipboardManager.primaryClip?.description?.timestamp }.getOrNull() ?: 0L
+        } else {
+            0L
+        }
+        mutex.withLock {
+            val now = System.currentTimeMillis()
+            val textHash = sha256Hex(text)
+            lastProcessedTextHash = textHash
+            if (sysTs > 0L) {
+                lastClipTimestamp = sysTs
+                persistClipCursor(sysTs, textHash)
+            } else {
+                persistClipHashOnly(textHash)
+            }
+            try {
+                val existing = clbDao.find(text, false)
+                val entry = if (existing != null) {
+                    clbDao.updateTime(existing.id, now)
+                    existing.copy(timestamp = now)
+                } else {
+                    val newEntry = ClipboardEntry(text = text, timestamp = now)
+                    val inserted = clbDb.withTransaction {
+                        val rowId = clbDao.insert(newEntry)
+                        removeOutdated()
+                        clbDao.get(rowId) ?: newEntry
+                    }
+                    updateItemCount()
+                    inserted
+                }
+                updateLastEntry(entry, notifyLocalCopy = false)
+            } catch (e: Exception) {
+                SyncLog.w("CB", "$logTag db failed: ${e.message}", e)
+                updateLastEntry(ClipboardEntry(text = text, timestamp = now), notifyLocalCopy = false)
+            }
+        }
+    }
+
+    /**
+     * 在输入法弹出、解锁等重新获得剪贴板访问权时机执行补偿检查：
+     * 捕获之前因后台无焦点而被系统拦截的剪贴板变更，或进程重启期间新产生的数据。
+     */
+    fun checkAndSyncSystemClipboard(reason: String) {
+        if (!enabledPref.getValue()) return
+        val nowElapsed = SystemClock.elapsedRealtime()
+        if (nowElapsed - lastCompensationCheckAt < 250L) return
+        lastCompensationCheckAt = nowElapsed
+
         val clip = runCatching { clipboardManager.primaryClip }.getOrElse { e ->
-            SyncLog.w("CB", "read primaryClip threw ${e.javaClass.simpleName}: ${e.message}", e)
+            SyncLog.d("CB", "compensation($reason): primaryClip threw ${e.javaClass.simpleName}")
             return
         }
         if (clip == null) {
-            SyncLog.w("CB", "primaryClip=null (no focus / access denied by system)")
+            SyncLog.d("CB", "compensation($reason): primaryClip=null")
             return
         }
-        /**
-         * skip duplicate ClipData
-         * https://developer.android.com/reference/android/content/ClipboardManager.OnPrimaryClipChangedListener#onPrimaryClipChanged()
-         */
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val timestamp = clip.description.timestamp
-            if (timestamp == lastClipTimestamp) {
-                SyncLog.d("CB", "skip: duplicate event (ts=$timestamp)")
+
+        // 若刚才因自己 setPrimaryClip 触发的回调在后台被拦截，待补读时若仍是同一段文本则仅对齐游标，不回传
+        val selfApplied = lastSelfAppliedText
+        if (pendingBackgroundClipSync &&
+            selfApplied != null &&
+            pendingMissedClipAt - lastSelfAppliedClipAt in 0L..3_000L
+        ) {
+            val currentText = runCatching {
+                if (clip.itemCount > 0) clip.getItemAt(0)?.text?.toString() else null
+            }.getOrNull()
+            if (currentText == selfApplied) {
+                pendingBackgroundClipSync = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val ts = clip.description.timestamp
+                    if (ts > 0L) {
+                        lastClipTimestamp = ts
+                        persistClipCursor(ts, sha256Hex(selfApplied))
+                    }
+                }
+                SyncLog.d("CB", "compensation($reason): matched just-applied self text, skipped upload")
                 return
             }
-            lastClipTimestamp = timestamp
+        }
+
+        val hadPending = pendingBackgroundClipSync
+        pendingBackgroundClipSync = false
+        handleClipData(clip, fromCompensation = true, forceUploadIfPending = hadPending, reason = reason)
+    }
+
+    override fun onPrimaryClipChanged() {
+        // 注意：Android 10+ 部分 ROM 在软键盘未弹出时读取剪贴板会被拦截。
+        // 被拦截时记下 pendingBackgroundClipSync，待解锁或弹出键盘时再补读上传。
+        val clip = runCatching { clipboardManager.primaryClip }.getOrElse { e ->
+            pendingBackgroundClipSync = true
+            pendingMissedClipAt = SystemClock.elapsedRealtime()
+            SyncLog.w("CB", "read primaryClip threw ${e.javaClass.simpleName}: ${e.message} -> marked pending", e)
+            return
+        }
+        if (clip == null) {
+            pendingBackgroundClipSync = true
+            pendingMissedClipAt = SystemClock.elapsedRealtime()
+            SyncLog.w("CB", "primaryClip=null (no focus / access denied by system) -> marked pending")
+            return
+        }
+        pendingBackgroundClipSync = false
+        handleClipData(clip, fromCompensation = false, forceUploadIfPending = false, reason = "listener")
+    }
+
+    private fun handleClipData(
+        clip: ClipData,
+        fromCompensation: Boolean,
+        forceUploadIfPending: Boolean,
+        reason: String
+    ) {
+        var shouldNotifyLocalCopy = true
+        val clipTimestamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            clip.description.timestamp
+        } else {
+            0L
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (clipTimestamp == lastClipTimestamp && !forceUploadIfPending) {
+                if (!fromCompensation) {
+                    SyncLog.d("CB", "skip: duplicate event (ts=$clipTimestamp)")
+                }
+                return
+            }
+            if (fromCompensation && lastClipTimestamp == -1L) {
+                // 进程刚重启后首次补偿读到系统剪贴板：比对持久化时间戳，防止把重启前的老剪贴板重新上传覆盖服务端
+                val persistedTs = statePrefs?.getLong(KEY_LAST_CLIP_TS, 0L) ?: 0L
+                val isNewSinceRestart = when {
+                    forceUploadIfPending -> true
+                    persistedTs > 0L -> clipTimestamp > persistedTs
+                    else -> clipTimestamp >= initWallTimeMs
+                }
+                if (!isNewSinceRestart) {
+                    shouldNotifyLocalCopy = false
+                    SyncLog.d(
+                        "CB",
+                        "compensation($reason): existing pre-restart clip (ts=$clipTimestamp persisted=$persistedTs), sync locally only"
+                    )
+                }
+            }
+            lastClipTimestamp = clipTimestamp
         } else {
             val timestamp = System.currentTimeMillis()
             val hash = clip.hashCode()
-            if (timestamp - lastClipTimestamp < 100L && hash == lastClipHash) {
+            if (!fromCompensation && timestamp - lastClipTimestamp < 100L && hash == lastClipHash) {
                 SyncLog.d("CB", "skip: duplicate event (legacy)")
                 return
+            }
+            if (fromCompensation && lastClipTimestamp == -1L && !forceUploadIfPending) {
+                shouldNotifyLocalCopy = false
             }
             lastClipTimestamp = timestamp
             lastClipHash = hash
         }
+
         val mimes = (0 until clip.description.mimeTypeCount)
             .joinToString(",") { clip.description.getMimeType(it) }
-        SyncLog.d("CB", "clip changed: mime=$mimes items=${clip.itemCount}")
+        SyncLog.d(
+            "CB",
+            "clip changed ($reason): mime=$mimes items=${clip.itemCount} notifyUpload=$shouldNotifyLocalCopy"
+        )
         launch {
             mutex.withLock {
                 // 尝试包含图片的处理
@@ -248,7 +450,10 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                             removeOutdated()
                             clbDao.get(rowId) ?: entry
                         }
-                        updateLastEntry(insertedEntry)
+                        if (clipTimestamp > 0L) {
+                            persistClipCursor(clipTimestamp, "")
+                        }
+                        updateLastEntry(insertedEntry, notifyLocalCopy = shouldNotifyLocalCopy)
                         updateItemCount()
                     } catch (exception: Exception) {
                         SyncLog.w("CB", "failed to insert image entry: $exception", exception)
@@ -261,10 +466,36 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                     SyncLog.d("CB", "skip: blank text")
                     return@withLock
                 }
+
+                val textHash = sha256Hex(entry.text)
+                // Android < O 或 timestamp 为 0 的设备，额外比对内存及持久化文本摘要避免重复上传
+                if (fromCompensation && !forceUploadIfPending && clipTimestamp <= 0L) {
+                    val persistedHash = statePrefs?.getString(KEY_LAST_CLIP_HASH, "") ?: ""
+                    if (textHash == lastProcessedTextHash || persistedHash == textHash) {
+                        shouldNotifyLocalCopy = false
+                        if (lastProcessedTextHash == textHash) {
+                            SyncLog.d("CB", "compensation($reason): same text hash on legacy api, skipped")
+                            return@withLock
+                        }
+                    }
+                }
+                lastProcessedTextHash = textHash
+                if (clipTimestamp > 0L) {
+                    persistClipCursor(clipTimestamp, textHash)
+                } else {
+                    persistClipHashOnly(textHash)
+                }
+
                 try {
                     clbDao.find(entry.text, entry.sensitive)?.let {
-                        SyncLog.d("CB", "text duplicated in history (id=${it.id}, sensitive=${entry.sensitive}) ${SyncLog.textMeta(entry.text)}")
-                        updateLastEntry(it.copy(timestamp = entry.timestamp))
+                        SyncLog.d(
+                            "CB",
+                            "text duplicated in history (id=${it.id}, sensitive=${entry.sensitive}) ${SyncLog.textMeta(entry.text)}"
+                        )
+                        updateLastEntry(
+                            it.copy(timestamp = entry.timestamp),
+                            notifyLocalCopy = shouldNotifyLocalCopy
+                        )
                         clbDao.updateTime(it.id, entry.timestamp)
                         return@withLock
                     }
@@ -274,15 +505,39 @@ object ClipboardManager : ClipboardManager.OnPrimaryClipChangedListener,
                         // new entry can be deleted immediately if clipboard limit == 0
                         clbDao.get(rowId) ?: entry
                     }
-                    SyncLog.i("CB", "text stored (id=${insertedEntry.id}, sensitive=${entry.sensitive}) ${SyncLog.textMeta(entry.text)}")
-                    updateLastEntry(insertedEntry)
+                    SyncLog.i(
+                        "CB",
+                        "text stored (id=${insertedEntry.id}, sensitive=${entry.sensitive}, upload=$shouldNotifyLocalCopy) ${SyncLog.textMeta(entry.text)}"
+                    )
+                    updateLastEntry(insertedEntry, notifyLocalCopy = shouldNotifyLocalCopy)
                     updateItemCount()
                 } catch (exception: Exception) {
                     SyncLog.w("CB", "failed to update db, fallback to in-memory only: $exception", exception)
-                    updateLastEntry(entry)
+                    updateLastEntry(entry, notifyLocalCopy = shouldNotifyLocalCopy)
                 }
             }
         }
+    }
+
+    private fun persistClipCursor(timestamp: Long, textHash: String) {
+        statePrefs?.edit {
+            putLong(KEY_LAST_CLIP_TS, timestamp)
+            if (textHash.isNotEmpty()) {
+                putString(KEY_LAST_CLIP_HASH, textHash)
+            }
+        }
+    }
+
+    private fun persistClipHashOnly(textHash: String) {
+        if (textHash.isEmpty()) return
+        statePrefs?.edit {
+            putString(KEY_LAST_CLIP_HASH, textHash)
+        }
+    }
+
+    private fun sha256Hex(text: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     private suspend fun removeOutdated() {

@@ -4,17 +4,28 @@
  */
 package org.fcitx.fcitx5.android.data.verification
 
+import android.app.KeyguardManager
 import android.content.ClipData
+import android.content.ComponentName
+import android.os.Build
+import android.os.PowerManager
+import android.os.SystemClock
+import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import android.widget.Toast
 import androidx.annotation.Keep
+import androidx.core.content.getSystemService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
 import org.fcitx.fcitx5.android.data.prefs.ManagedPreference
+import org.fcitx.fcitx5.android.data.syncclipboard.SyncClipboardManager
+import org.fcitx.fcitx5.android.data.syncclipboard.SyncLog
 import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.clipboardManager
 import org.json.JSONArray
@@ -26,16 +37,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * 验证码提取管理器
- * 从通知中提取验证码并复制到剪贴板
+ * 纯 Kotlin 验证码提取工具（无 Android Framework 依赖，便于单元测试与复用）。
  */
-object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
+object VerificationCodeExtractor {
 
-    private val prefs = AppPrefs.getInstance().verificationCode
-    private val clipboardManager = appContext.clipboardManager
-
-    // 默认触发关键词列表
-    private val DEFAULT_KEYWORDS = listOf(
+    val DEFAULT_KEYWORDS = listOf(
         "验证码", "校验码", "检验码", "确认码", "激活码", "动态码", "安全码",
         "验证代码", "校验代码", "检验代码", "激活代码", "确认代码", "动态代码", "安全代码",
         "登入码", "认证码", "识别码", "短信口令", "动态密码", "交易码", "上网密码", "随机码", "动态口令",
@@ -58,11 +64,76 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
         "临时口令", "臨時口令", "临时验证码", "臨時驗證碼"
     )
 
+    /**
+     * 验证码正则：严格限定在独立字母数字词边界内匹配：
+     * - 4-8 位纯数字，或
+     * - 4-8 位同时包含字母与数字的混合码（避免跨空格误匹配普通英文单词或截断长订单号）。
+     */
+    private val CODE_PATTERN =
+        """(?<![a-zA-Z0-9])(?:(?=[a-zA-Z0-9]*[a-zA-Z])(?=[a-zA-Z0-9]*\d)[a-zA-Z0-9]{4,8}|\d{4,8})(?![a-zA-Z0-9])""".toRegex()
+
+    fun containsKeywords(text: String, keywordList: List<String>): Boolean {
+        val lowerText = text.lowercase()
+        return keywordList.any { keyword -> keyword.isNotBlank() && keyword.lowercase() in lowerText }
+    }
+
+    /**
+     * 本地智能提取验证码：找到离触发关键词最近的独立候选码。
+     */
+    fun extractCodeLocal(text: String, keywordList: List<String> = DEFAULT_KEYWORDS): String? {
+        val keywordPositions = mutableListOf<Int>()
+        for (keyword in keywordList) {
+            if (keyword.isBlank()) continue
+            var index = text.indexOf(keyword, ignoreCase = true)
+            while (index != -1) {
+                keywordPositions.add(index)
+                index = text.indexOf(keyword, index + keyword.length, ignoreCase = true)
+            }
+        }
+        if (keywordPositions.isEmpty()) return null
+
+        val candidates = CODE_PATTERN.findAll(text).toList()
+        if (candidates.isEmpty()) return null
+
+        var closestCode: String? = null
+        var closestDistance = Int.MAX_VALUE
+        for (match in candidates) {
+            val codeStart = match.range.first
+            val code = match.value
+            for (keywordPos in keywordPositions) {
+                val distance = kotlin.math.abs(codeStart - keywordPos)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestCode = code
+                }
+            }
+        }
+        return closestCode
+    }
+}
+
+/**
+ * 验证码提取管理器
+ * 从通知中提取验证码并复制到剪贴板，同时联动剪贴板同步上传（支持息屏状态直通上传）。
+ */
+object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Default) {
+
+    private const val DUPLICATE_WINDOW_MS = 5_000L
+
+    private val prefs by lazy { AppPrefs.getInstance().verificationCode }
+    private val clipboardManager by lazy { appContext.clipboardManager }
+
     // 当前使用的关键词列表
-    private var keywords: List<String> = DEFAULT_KEYWORDS
+    private var keywords: List<String> = VerificationCodeExtractor.DEFAULT_KEYWORDS
 
     // 验证码提取后的回调
     var onCodeExtracted: ((String) -> Unit)? = null
+
+    @Volatile
+    private var lastExtractedCode: String? = null
+
+    @Volatile
+    private var lastExtractedAt = 0L
 
     @Keep
     private val enabledListener = ManagedPreference.OnChangeListener<Boolean> { _, enabled ->
@@ -78,52 +149,56 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
         prefs.enabled.registerOnChangeListener(enabledListener)
         prefs.keywords.registerOnChangeListener(keywordsListener)
         loadKeywords()
+        ensureListenerBound()
+    }
+
+    /**
+     * 覆盖安装更新或系统异常解绑后，在用户已授予通知监听权限的前提下主动请求重新绑定，
+     * 避免出现重启/升级后通知监听假死。
+     */
+    fun ensureListenerBound() {
+        if (!prefs.enabled.getValue()) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+        runCatching {
+            val componentName = ComponentName(appContext, VerificationCodeNotificationListener::class.java)
+            val enabledListeners = Settings.Secure.getString(
+                appContext.contentResolver,
+                "enabled_notification_listeners"
+            )
+            if (enabledListeners?.contains(componentName.flattenToString()) == true) {
+                NotificationListenerService.requestRebind(componentName)
+            }
+        }
     }
 
     private fun loadKeywords() {
-        // 从设置中读取关键词（逗号分隔）
         val keywordsStr = prefs.keywords.getValue()
         keywords = if (keywordsStr.isNotBlank()) {
             keywordsStr.split(",").map { it.trim() }.filter { it.isNotBlank() }
         } else {
-            DEFAULT_KEYWORDS
+            VerificationCodeExtractor.DEFAULT_KEYWORDS
         }
         Timber.d("Loaded ${keywords.size} keywords")
     }
 
-    /**
-     * 获取当前关键词列表
-     */
     fun getKeywords(): List<String> = keywords.toList()
 
-    /**
-     * 设置关键词列表
-     */
     fun setKeywords(newKeywords: List<String>) {
         keywords = newKeywords.filter { it.isNotBlank() }
     }
 
-    /**
-     * 添加关键词
-     */
     fun addKeyword(keyword: String) {
         if (keyword.isNotBlank() && !keywords.contains(keyword)) {
             keywords = keywords + keyword
         }
     }
 
-    /**
-     * 删除关键词
-     */
     fun removeKeyword(keyword: String) {
         keywords = keywords - keyword
     }
 
-    /**
-     * 重置为默认关键词
-     */
     fun resetKeywords() {
-        keywords = DEFAULT_KEYWORDS
+        keywords = VerificationCodeExtractor.DEFAULT_KEYWORDS
     }
 
     /**
@@ -131,8 +206,7 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
      */
     fun containsKeywords(text: String): Boolean {
         if (!prefs.enabled.getValue()) return false
-        val lowerText = text.lowercase()
-        return keywords.any { keyword -> keyword.lowercase() in lowerText }
+        return VerificationCodeExtractor.containsKeywords(text, keywords)
     }
 
     /**
@@ -143,90 +217,65 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
         if (!containsKeywords(text)) return
 
         launch {
-            val code = extractCode(text)
-            if (code != null && code.lowercase() != "none") {
-                withContext(Dispatchers.Main) {
-                    copyToClipboard(code)
+            val code = extractCode(text) ?: return@launch
+            if (code.lowercase() == "none") return@launch
+
+            val now = SystemClock.elapsedRealtime()
+            if (code == lastExtractedCode && now - lastExtractedAt < DUPLICATE_WINDOW_MS) {
+                SyncLog.d("OTP", "skip duplicate notification code within ${DUPLICATE_WINDOW_MS}ms (len=${code.length})")
+                return@launch
+            }
+            lastExtractedCode = code
+            lastExtractedAt = now
+
+            val unlockedInteractive = isDeviceUnlockedAndInteractive()
+            SyncLog.i("OTP", "extracted code len=${code.length} interactive=$unlockedInteractive")
+
+            // 1. 预先标记并直通触发同步上传（支持息屏下不依赖系统剪贴板回调直接上传）
+            ClipboardManager.markSelfAppliedText(code)
+            SyncClipboardManager.uploadTextForWakeup(code, "verification_code")
+
+            // 2. 写入系统剪贴板；仅在亮屏已解锁时弹 Toast 和触发输入框自动填充，避免息屏/锁屏误填
+            withContext(Dispatchers.Main) {
+                copyToClipboard(code)
+                if (unlockedInteractive) {
                     showToast(appContext.getString(R.string.verification_code_extracted, code))
-                    
-                    // 触发自动填充回调
                     if (prefs.autoFill.getValue()) {
                         onCodeExtracted?.invoke(code)
                     }
+                } else {
+                    Timber.d("Device locked or screen off: skip toast/auto-fill, synced via clipboard")
                 }
             }
+
+            // 3. 同步记录到输入法剪贴板历史
+            ClipboardManager.recordVerificationCode(code)
         }
     }
 
-    /**
-     * 根据设置提取验证码
-     */
     private suspend fun extractCode(text: String): String? {
         return when (prefs.extractionMode.getValue()) {
-            VerificationCodeExtractionMode.Local -> extractCodeLocal(text)
-            VerificationCodeExtractionMode.AI -> extractCodeAI(text) ?: extractCodeLocal(text)
+            VerificationCodeExtractionMode.Local -> extractCodeLocal(text, keywords)
+            VerificationCodeExtractionMode.AI -> extractCodeAI(text) ?: extractCodeLocal(text, keywords)
         }
     }
 
     /**
      * 本地智能提取验证码
-     * 使用距离算法：找到离关键词最近的验证码候选
      */
-    private fun extractCodeLocal(text: String): String? {
-        // 验证码匹配正则：4-8位纯数字 或 包含字母的4-8位混合码
-        val codePattern = """((?=[a-zA-Z].*\d|\d.*[a-zA-Z])[a-zA-Z0-9]{4,8})|(\d{4,8})""".toRegex()
-        
-        // 找到所有关键词的位置
-        val keywordPositions = mutableListOf<Int>()
-        for (keyword in keywords) {
-            var index = text.indexOf(keyword, ignoreCase = true)
-            while (index != -1) {
-                keywordPositions.add(index)
-                index = text.indexOf(keyword, index + keyword.length, ignoreCase = true)
-            }
+    internal fun extractCodeLocal(
+        text: String,
+        keywordList: List<String> = VerificationCodeExtractor.DEFAULT_KEYWORDS
+    ): String? {
+        val code = VerificationCodeExtractor.extractCodeLocal(text, keywordList)
+        if (code == null) {
+            Timber.d("No keywords or code candidates matched in text")
+        } else {
+            Timber.d("Extracted code '$code'")
         }
-        
-        // 如果没有找到关键词，返回 null
-        if (keywordPositions.isEmpty()) {
-            Timber.d("No keywords found in text")
-            return null
-        }
-        
-        // 找到所有可能的验证码候选
-        val candidates = codePattern.findAll(text).toList()
-        if (candidates.isEmpty()) {
-            Timber.d("No code candidates found in text")
-            return null
-        }
-        
-        // 找到距离关键词最近的验证码
-        var closestCode: String? = null
-        var closestDistance = Int.MAX_VALUE
-        
-        for (match in candidates) {
-            val codeStart = match.range.first
-            val code = match.value
-            
-            // 计算与所有关键词的最小距离
-            for (keywordPos in keywordPositions) {
-                val distance = kotlin.math.abs(codeStart - keywordPos)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestCode = code
-                }
-            }
-        }
-        
-        if (closestCode != null) {
-            Timber.d("Extracted code '$closestCode' with distance $closestDistance from keyword")
-        }
-        
-        return closestCode
+        return code
     }
 
-    /**
-     * 使用 AI API 提取验证码
-     */
     private suspend fun extractCodeAI(text: String): String? {
         val apiUrl = prefs.openaiApiUrl.getValue()
         val apiKey = prefs.openaiApiKey.getValue()
@@ -294,27 +343,24 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
         }
     }
 
-    /**
-     * 脱敏处理：隐藏敏感信息
-     */
     private fun desensitizeText(text: String): String {
         var result = text
-        // 替换 IP 地址
         result = result.replace(Regex("""\b(?:\d{1,3}\.){3}\d{1,3}\b"""), "***.***.***.***")
-        // 替换 URL
         result = result.replace(Regex("""https?://\S+"""), "http://****")
-        // 替换手机号码
         result = result.replace(Regex("""\b\d{10,11}\b"""), "**********")
-        // 替换邮箱
         result = result.replace(Regex("""\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"""), "****@****.***")
-        // 替换信用卡号码
         result = result.replace(Regex("""\b\d{13,19}\b"""), "********************")
         return result
     }
 
-    /**
-     * 复制验证码到剪贴板
-     */
+    private fun isDeviceUnlockedAndInteractive(): Boolean {
+        val pm = appContext.getSystemService<PowerManager>()
+        val km = appContext.getSystemService<KeyguardManager>()
+        val interactive = pm?.isInteractive ?: true
+        val locked = km?.isKeyguardLocked ?: false
+        return interactive && !locked
+    }
+
     private fun copyToClipboard(code: String) {
         try {
             val clip = ClipData.newPlainText("VerificationCode", code)
@@ -326,7 +372,8 @@ object VerificationCodeManager : CoroutineScope by CoroutineScope(SupervisorJob(
     }
 
     private fun showToast(message: String) {
-        Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+        runCatching {
+            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+        }
     }
 }
-

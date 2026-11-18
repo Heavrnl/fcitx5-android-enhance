@@ -25,6 +25,11 @@ import java.util.concurrent.TimeUnit
 /**
  * SignalR 客户端
  * 使用 OkHttp WebSocket 实现 SignalR JSON 协议
+ *
+ * 功耗优化说明：
+ * 1. 移除 OkHttp 内置的 pingInterval，统一由 SignalR 应用层心跳保活，避免双层定时唤醒射频。
+ * 2. 重连采用指数退避（1s -> 60s），且在无网络时挂起所有重试与看门狗，等待系统网络恢复回调。
+ * 3. disconnect() 时彻底取消所有协程并清空连接池，息屏休眠期间做到零唤醒。
  */
 class SyncClipboardSignalR(
     private val serverUrl: String,
@@ -36,55 +41,69 @@ class SyncClipboardSignalR(
         private const val TAG = "SignalR"
         private const val HUB_PATH = "/SyncClipboardHub"
         private const val RECORD_SEPARATOR = '\u001E' // ASCII 30 - SignalR message delimiter
-        private const val RECONNECT_DELAY_MS = 1000L           // 固定重连间隔 1 秒
-        private const val PING_INTERVAL_MS = 15000L
-        private const val HANDSHAKE_TIMEOUT_MS = 15000L       // 握手超时 15 秒
-        private const val ALIVE_TIMEOUT_MS = 45000L           // 活性超时 45 秒（3 个 ping 周期未收到消息则判定假死）
-        private const val WATCHDOG_INTERVAL_MS = 30000L       // 看门狗巡检间隔
+        private const val PING_INTERVAL_MS = 20_000L          // SignalR 心跳周期 20 秒
+        private const val HANDSHAKE_TIMEOUT_MS = 15_000L      // 握手超时 15 秒
+        private const val ALIVE_TIMEOUT_MS = 65_000L          // 活性超时 65 秒（超过 3 个心跳周期未收到消息则判定假死）
+        private const val WATCHDOG_INTERVAL_MS = 30_000L      // 看门狗巡检间隔
+        private val RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 2_000L, 5_000L, 15_000L, 30_000L, 60_000L)
     }
 
-    private val json = Json { 
-        ignoreUnknownKeys = true 
+    private val json = Json {
+        ignoreUnknownKeys = true
         isLenient = true
         encodeDefaults = true
     }
-    
+
+    // 仅由 SignalR 协议层 PING 控制心跳，避免与 OkHttp pingInterval 重复唤醒网络
     private val client = OkHttpClient.Builder()
-        .pingInterval(30, TimeUnit.SECONDS)
         .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MINUTES) // No timeout for WebSocket
+        .readTimeout(0, TimeUnit.MINUTES)
         .build()
 
     @Volatile
     private var webSocket: WebSocket? = null
+
     @Volatile
     private var isConnected = false
+
     @Volatile
-    private var isConnecting = false       // 标记是否正在建立连接（防止并发连接）
+    private var isConnecting = false
+
     @Volatile
-    private var shouldReconnect = true
-    private var reconnectAttempt = 0       // 当前重连次数（仅用于日志）
+    private var shouldReconnect = false
+
+    @Volatile
+    private var networkAvailable = true
+
+    @Volatile
+    private var waitingForNetwork = false
+
+    private var reconnectAttempt = 0
     private var pingJob: Job? = null
     private var reconnectJob: Job? = null
     private var watchdogJob: Job? = null
-    private var handshakeTimeoutJob: Job? = null  // 握手超时检测任务
+    private var handshakeTimeoutJob: Job? = null
+
     @Volatile
-    private var lastMessageTime = 0L               // 最后收到服务器消息的时间戳
+    private var lastMessageTime = 0L
 
     /**
      * 状态机锁。
-     *
-     * WebSocket 回调跑在 OkHttp 的读线程，ping/超时/重连跑在协程里，
-     * 之前出现过「活性超时把 socket 置空的同时，迟到的握手响应又把 isConnected 置回 true」，
-     * 结果 isConnected=true 但 webSocket=null —— ping 循环直接退出、connect() 又因为
-     * "already connected" 直接返回，从此永久不再重连（日志里 2026-10-26 20:47 就是这样死的）。
-     * 所有状态迁移都必须在这把锁里做，且迁移时重新校验 socket 身份。
+     * WebSocket 回调跑在 OkHttp 线程，ping/超时/重连跑在协程里，
+     * 所有状态迁移必须在锁内完成并校验 socket 身份，防止"假在线"死锁。
      */
     private val stateLock = Any()
 
     var onProfileChanged: ((ProfileDto) -> Unit)? = null
+    var onConnecting: (() -> Unit)? = null
     var onConnected: (() -> Unit)? = null
     var onDisconnected: ((Throwable?) -> Unit)? = null
+
+    val isConnectedNow: Boolean
+        get() = synchronized(stateLock) { isConnected && webSocket != null }
+
+    val isConnectingNow: Boolean
+        get() = synchronized(stateLock) { isConnecting }
 
     private val authHeader: String by lazy {
         val credentials = "$username:$password"
@@ -97,26 +116,43 @@ class SyncClipboardSignalR(
      */
     fun connect() {
         var stale: WebSocket? = null
+        var deferredNoNetwork = false
         synchronized(stateLock) {
-            // 半死状态（isConnected=true 但 socket 已经没了）不能当成"已连接"直接跳过，
-            // 否则就再也不会重连了 —— 这正是线上"同步突然没反应、只能重启"的成因。
             if (isConnecting || (isConnected && webSocket != null)) {
                 Timber.tag(TAG).d("Already connected or connecting, skipping")
                 SyncLog.d("WS", "connect skipped: connected=$isConnected connecting=$isConnecting")
                 return
             }
-            isConnected = false
-            isConnecting = true
             shouldReconnect = true
-            stale = webSocket
-            webSocket = null
+            if (!networkAvailable) {
+                isConnected = false
+                isConnecting = false
+                waitingForNetwork = true
+                stale = webSocket
+                webSocket = null
+                deferredNoNetwork = true
+            } else {
+                isConnected = false
+                isConnecting = true
+                waitingForNetwork = false
+                stale = webSocket
+                webSocket = null
+            }
         }
-        // 清理旧的 WebSocket，防止多个实例并存
         stale?.close(1000, "Reconnecting")
+
+        if (deferredNoNetwork) {
+            reconnectJob?.cancel()
+            watchdogJob?.cancel()
+            SyncLog.i("WS", "connect deferred: no network")
+            onDisconnected?.invoke(null)
+            return
+        }
 
         val wsUrl = buildWebSocketUrl()
         Timber.tag(TAG).d("Connecting to: $wsUrl (attempt=$reconnectAttempt)")
         SyncLog.i("WS", "connect attempt=${reconnectAttempt + 1} url=$wsUrl")
+        onConnecting?.invoke()
 
         val request = Request.Builder()
             .url(wsUrl)
@@ -124,16 +160,86 @@ class SyncClipboardSignalR(
             .build()
 
         val socket = client.newWebSocket(request, WebSocketListenerImpl())
-        synchronized(stateLock) { if (isConnecting) webSocket = socket }
+        val stillConnecting = synchronized(stateLock) {
+            if (isConnecting && shouldReconnect) {
+                webSocket = socket
+                true
+            } else {
+                false
+            }
+        }
+        if (!stillConnecting) {
+            socket.cancel()
+            return
+        }
 
-        // 启动握手超时检测：如果超时未完成握手，强制断开并重连
         startHandshakeTimeout(socket)
         startWatchdog()
     }
 
     /**
-     * 把连接状态强制拉回"未连接"并重连。
-     * 冷启动/假死/状态不一致等所有"需要重来一遍"的路径都走这里，避免各处手写状态迁移写漏。
+     * 立即复位退避计数并重连（用于网络切换/亮屏唤醒/手动触发）
+     */
+    fun reconnectNow(reason: String) {
+        var old: WebSocket? = null
+        val canConnect: Boolean
+        synchronized(stateLock) {
+            old = webSocket
+            webSocket = null
+            isConnected = false
+            isConnecting = false
+            shouldReconnect = true
+            reconnectAttempt = 0
+            waitingForNetwork = !networkAvailable
+            canConnect = networkAvailable
+        }
+        pingJob?.cancel()
+        reconnectJob?.cancel()
+        handshakeTimeoutJob?.cancel()
+        runCatching { old?.cancel() }
+        SyncLog.i("WS", "reconnect now: $reason (net=$canConnect)")
+        if (canConnect) {
+            connect()
+        } else {
+            watchdogJob?.cancel()
+            onDisconnected?.invoke(null)
+        }
+    }
+
+    /**
+     * 同步系统网络可用性；无网时停止盲目重连与看门狗，恢复网络后立刻复位重连。
+     */
+    fun setNetworkAvailable(available: Boolean) {
+        val shouldStartNow: Boolean
+        val shouldPauseNoNetwork: Boolean
+        synchronized(stateLock) {
+            if (networkAvailable == available) return
+            networkAvailable = available
+            if (available) {
+                waitingForNetwork = false
+                reconnectAttempt = 0
+                shouldStartNow = shouldReconnect && !isConnected && !isConnecting
+                shouldPauseNoNetwork = false
+            } else {
+                shouldStartNow = false
+                shouldPauseNoNetwork = shouldReconnect
+            }
+        }
+
+        if (available) {
+            SyncLog.i("WS", "network restored (shouldStart=$shouldStartNow)")
+            if (shouldStartNow) {
+                reconnectJob?.cancel()
+                connect()
+            }
+        } else if (shouldPauseNoNetwork) {
+            SyncLog.i("WS", "network lost -> stop timers and wait for network")
+            forceReconnect("network lost")
+        }
+    }
+
+    /**
+     * 把连接状态强制拉回"未连接"并按策略重连。
      */
     private fun forceReconnect(reason: String) {
         var old: WebSocket? = null
@@ -152,16 +258,15 @@ class SyncClipboardSignalR(
     }
 
     /**
-     * 看门狗：兜住"连接状态和实际 socket 脱节"这一类错误。
-     * 每 30 秒校验一次不变量：isConnected 必须对应一个真实的当前 socket，
-     * 未连接时必须有重连在进行。违反就强制重连。
+     * 看门狗：兜住"连接状态和实际 socket 脱节"的状态不一致。
+     * 无网络时主动退出，等待网络恢复时由 connect() 重新拉起。
      */
     private fun startWatchdog() {
         if (watchdogJob?.isActive == true) return
         watchdogJob = launch {
-            while (shouldReconnect) {
+            while (shouldReconnect && networkAvailable) {
                 delay(WATCHDOG_INTERVAL_MS)
-                if (!shouldReconnect) break
+                if (!shouldReconnect || !networkAvailable) break
                 val connectedWithoutSocket = synchronized(stateLock) {
                     isConnected && webSocket == null
                 }
@@ -170,7 +275,9 @@ class SyncClipboardSignalR(
                     forceReconnect("watchdog: connected without socket")
                     continue
                 }
-                val idle = !isConnected && !isConnecting && reconnectJob?.isActive != true
+                val idle = synchronized(stateLock) {
+                    shouldReconnect && networkAvailable && !isConnected && !isConnecting
+                } && reconnectJob?.isActive != true
                 if (idle) {
                     SyncLog.w("WS", "watchdog: not connected and no reconnect pending")
                     scheduleReconnect("watchdog: idle without socket")
@@ -181,7 +288,7 @@ class SyncClipboardSignalR(
     }
 
     /**
-     * 断开连接
+     * 主动断开连接并停止所有后台任务、清空空闲连接池（用于用户关闭或息屏休眠）。
      */
     fun disconnect() {
         SyncLog.i("WS", "disconnect() by client (shouldReconnect=false)")
@@ -189,6 +296,7 @@ class SyncClipboardSignalR(
         synchronized(stateLock) {
             shouldReconnect = false
             isConnecting = false
+            waitingForNetwork = false
             reconnectAttempt = 0
             old = webSocket
             webSocket = null
@@ -198,12 +306,10 @@ class SyncClipboardSignalR(
         reconnectJob?.cancel()
         handshakeTimeoutJob?.cancel()
         watchdogJob?.cancel()
-        old?.close(1000, "Client disconnect")
+        runCatching { old?.close(1000, "Client disconnect") }
+        runCatching { client.connectionPool.evictAll() }
     }
 
-    /**
-     * 构建 WebSocket URL
-     */
     private fun buildWebSocketUrl(): String {
         val baseUrl = serverUrl.trimEnd('/')
         val wsScheme = if (baseUrl.startsWith("https://")) "wss://" else "ws://"
@@ -211,15 +317,7 @@ class SyncClipboardSignalR(
         return "$wsScheme$host$HUB_PATH"
     }
 
-    /**
-     * 发送 SignalR 握手
-     */
-    /**
-     * 发送 SignalR 握手
-     */
     private fun sendHandshake(webSocket: WebSocket) {
-        // 使用硬编码的 JSON 字符串以确保格式正确
-        // 注意：SignalR 协议要求握手消息必须以 RECORD_SEPARATOR (0x1E) 结尾
         val handshake = """{"protocol":"json","version":1}""" + RECORD_SEPARATOR
         if (webSocket.send(handshake)) {
             Timber.tag(TAG).d("Sent handshake: $handshake")
@@ -228,18 +326,12 @@ class SyncClipboardSignalR(
         }
     }
 
-    /**
-     * 发送 Ping 消息
-     */
     private fun sendPing(webSocket: WebSocket) {
         val ping = SignalRPingMessage()
         val message = json.encodeToString(ping) + RECORD_SEPARATOR
         webSocket.send(message)
     }
 
-    /**
-     * 启动 Ping 定时任务
-     */
     private fun startPingJob(webSocket: WebSocket) {
         pingJob?.cancel()
         pingJob = launch {
@@ -248,7 +340,6 @@ class SyncClipboardSignalR(
                 delay(PING_INTERVAL_MS)
                 if (isCurrentSocket(webSocket) && isConnected) {
                     ticks++
-                    // 检查活性超时：如果距离上次收到消息超过阈值，认为连接假死
                     val elapsed = System.currentTimeMillis() - lastMessageTime
                     if (elapsed > ALIVE_TIMEOUT_MS) {
                         Timber.tag(TAG).w("Connection seems dead (no message for ${elapsed}ms), forcing reconnect")
@@ -256,24 +347,20 @@ class SyncClipboardSignalR(
                         forceReconnect("alive timeout ${elapsed}ms")
                         return@launch
                     }
-                    // 每 4 次 ping（约 1 分钟）记一条心跳，用于离线后回看"最后一次活着是什么时候"
-                    if (ticks % 4 == 0) {
+                    // 每 3 次 ping（约 1 分钟）记一条心跳，用于离线排查
+                    if (ticks % 3 == 0) {
                         SyncLog.d("WS", "heartbeat: ping #$ticks, last server message ${elapsed}ms ago")
                     }
                     sendPing(webSocket)
                 }
             }
             SyncLog.d("WS", "ping job ended (connected=$isConnected current=${isCurrentSocket(webSocket)})")
-            // 循环退出但状态仍是"已连接" = socket 被换掉/清理掉了但标志没跟上，
-            // 这种状态不会再有心跳和活性检测，必须主动重启连接。
-            if (isConnected) forceReconnect("ping loop exited while isConnected=true")
+            if (isConnected && shouldReconnect) {
+                forceReconnect("ping loop exited while isConnected=true")
+            }
         }
     }
 
-    /**
-     * 握手超时检测
-     * 如果握手在指定时间内未完成，强制断开连接并触发重连
-     */
     private fun startHandshakeTimeout(webSocket: WebSocket) {
         handshakeTimeoutJob?.cancel()
         handshakeTimeoutJob = launch {
@@ -292,64 +379,64 @@ class SyncClipboardSignalR(
     private fun isCurrentSocket(webSocket: WebSocket): Boolean =
         this.webSocket === webSocket
 
-    /**
-     * 获取重连延迟（固定 1 秒）
-     */
-    private fun getReconnectDelay(): Long = RECONNECT_DELAY_MS
+    private fun getReconnectDelay(attemptIndex: Int): Long {
+        val idx = attemptIndex.coerceIn(0, RECONNECT_BACKOFF_MS.lastIndex)
+        return RECONNECT_BACKOFF_MS[idx]
+    }
 
-    /**
-     * 计划重连
-     */
     private fun scheduleReconnect(reason: String) {
-        if (!shouldReconnect) {
-            SyncLog.d("WS", "reconnect suppressed (shouldReconnect=false) after: $reason")
-            return
+        val delayMs: Long
+        val attemptNum: Int
+        synchronized(stateLock) {
+            if (!shouldReconnect) {
+                SyncLog.d("WS", "reconnect suppressed (shouldReconnect=false) after: $reason")
+                return
+            }
+            if (!networkAvailable) {
+                waitingForNetwork = true
+                reconnectJob?.cancel()
+                watchdogJob?.cancel()
+                SyncLog.i("WS", "reconnect deferred until network available (reason=$reason)")
+                return
+            }
+            delayMs = getReconnectDelay(reconnectAttempt)
+            reconnectAttempt++
+            attemptNum = reconnectAttempt
         }
-        
+
         reconnectJob?.cancel()
-        val delayMs = getReconnectDelay()
-        reconnectAttempt++
-        SyncLog.i("WS", "reconnect scheduled in ${delayMs}ms (attempt=$reconnectAttempt) reason=$reason")
+        SyncLog.i("WS", "reconnect scheduled in ${delayMs}ms (attempt=$attemptNum) reason=$reason")
         reconnectJob = launch {
-            Timber.tag(TAG).d("Reconnecting in ${delayMs}ms (attempt=$reconnectAttempt)...")
+            Timber.tag(TAG).d("Reconnecting in ${delayMs}ms (attempt=$attemptNum)...")
             delay(delayMs)
-            if (shouldReconnect) {
+            val canConnect = synchronized(stateLock) { shouldReconnect && networkAvailable }
+            if (canConnect) {
                 connect()
             }
         }
     }
 
-    /**
-     * 处理收到的消息
-     */
     private fun handleMessage(webSocket: WebSocket, text: String) {
         if (!isCurrentSocket(webSocket)) {
             Timber.tag(TAG).d("Ignoring message from stale WebSocket")
             return
         }
 
-        // SignalR 消息以 RECORD_SEPARATOR 分隔
         val messages = text.split(RECORD_SEPARATOR).filter { it.isNotBlank() }
-        
-        // 收到任何消息都更新活性时间戳
         lastMessageTime = System.currentTimeMillis()
-        
+
         for (msgText in messages) {
             try {
-                // 首先尝试解析为握手响应
                 if (!isConnected) {
                     val handshakeResponse = json.decodeFromString<SignalRHandshakeResponse>(msgText)
                     if (handshakeResponse.error == null) {
-                        // 关键：在锁里**重新校验 socket 身份**再迁移状态。
-                        // 这里曾经出现过：活性超时刚把 webSocket 置空，这条迟到的握手响应
-                        // 又把 isConnected 置回 true，于是 ping 循环立刻退出、
-                        // connect() 因 "already connected" 永久跳过 —— 同步彻底死掉只能重启。
                         val accepted = synchronized(stateLock) {
                             if (isCurrentSocket(webSocket) && !isConnected) {
                                 isConnected = true
                                 isConnecting = false
-                                reconnectAttempt = 0  // 连接成功，重置重连计数
-                                lastMessageTime = System.currentTimeMillis()  // 初始化活性时间戳
+                                waitingForNetwork = false
+                                reconnectAttempt = 0
+                                lastMessageTime = System.currentTimeMillis()
                                 true
                             } else false
                         }
@@ -358,15 +445,13 @@ class SyncClipboardSignalR(
                             continue
                         }
                         handshakeTimeoutJob?.cancel()
-                        SyncLog.i("WS", "handshake ok, connected (pid=${android.os.Process.myPid()})")
+                        val pid = runCatching { android.os.Process.myPid() }.getOrDefault(-1)
+                        SyncLog.i("WS", "handshake ok, connected (pid=$pid)")
                         Timber.tag(TAG).i("Connected to server")
                         startPingJob(webSocket)
                         onConnected?.invoke()
                     } else {
                         Timber.tag(TAG).e("Handshake error: ${handshakeResponse.error}")
-                        // 之前这里走 disconnect()，会把 shouldReconnect 置 false，
-                        // 之后永远不再重连（只能重启 App / 关开开关）。
-                        // 握手被拒也要继续重试，由看门狗保证不会卡死。
                         SyncLog.e(
                             "WS",
                             "handshake rejected by server: ${handshakeResponse.error} -> will retry"
@@ -376,15 +461,12 @@ class SyncClipboardSignalR(
                     continue
                 }
 
-                // 解析为调用消息
                 val message = json.decodeFromString<SignalRInvocationMessage>(msgText)
-                
+
                 when (message.type) {
-                    SignalRMessageType.INVOCATION -> {
-                        handleInvocation(message)
-                    }
+                    SignalRMessageType.INVOCATION -> handleInvocation(message)
                     SignalRMessageType.PING -> {
-                        // Pong - 服务器发来的 ping，不需要响应
+                        // 服务器发来的 ping，不需要响应
                     }
                     SignalRMessageType.CLOSE -> {
                         Timber.tag(TAG).d("Server closed connection")
@@ -399,9 +481,6 @@ class SyncClipboardSignalR(
         }
     }
 
-    /**
-     * 处理服务器调用
-     */
     private fun handleInvocation(message: SignalRInvocationMessage) {
         when (message.target) {
             "RemoteProfileChanged" -> {
@@ -409,7 +488,6 @@ class SyncClipboardSignalR(
                 if (args != null && args.isNotEmpty()) {
                     try {
                         val profile = json.decodeFromJsonElement<ProfileDto>(args[0])
-                        // 不打印 text 内容，避免剪贴板明文进入落盘日志
                         Timber.tag(TAG).d("Profile changed: type=${profile.type}, dataName=${profile.dataName}")
                         onProfileChanged?.invoke(profile)
                     } catch (e: Exception) {
@@ -418,7 +496,6 @@ class SyncClipboardSignalR(
                 }
             }
             "RemoteHistoryChanged" -> {
-                // 历史记录变化，暂不处理
                 Timber.tag(TAG).d("History changed (ignored)")
             }
             else -> {
@@ -427,9 +504,6 @@ class SyncClipboardSignalR(
         }
     }
 
-    /**
-     * WebSocket 监听器
-     */
     private inner class WebSocketListenerImpl : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             if (!isCurrentSocket(webSocket)) {

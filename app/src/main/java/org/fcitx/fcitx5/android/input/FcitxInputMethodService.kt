@@ -614,8 +614,14 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
         lastKnownConfig = newConfig
     }
 
+    private fun notifyClipboardSyncOnImeActive() {
+        org.fcitx.fcitx5.android.data.clipboard.ClipboardManager.checkAndSyncSystemClipboard("ime_shown")
+        org.fcitx.fcitx5.android.data.syncclipboard.SyncClipboardManager.onImeActivated()
+    }
+
     override fun onWindowShown() {
         super.onWindowShown()
+        notifyClipboardSyncOnImeActive()
         try {
             highlightColor = styledColor(android.R.attr.colorAccent).alpha(0.4f)
         } catch (_: Exception) {
@@ -832,6 +838,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         Timber.d("onStartInputView: restarting=$restarting")
+        notifyClipboardSyncOnImeActive()
         postFcitxJob {
             focus(true)
         }

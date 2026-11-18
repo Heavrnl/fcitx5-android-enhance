@@ -397,6 +397,12 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val password = password(
             R.string.sync_clipboard_password, "sync_clipboard_password", ""
         ) { enabled.getValue() }
+        val foregroundService = switch(
+            R.string.sync_clipboard_foreground_service,
+            "sync_clipboard_foreground_service",
+            false,
+            summary = R.string.sync_clipboard_foreground_service_desc
+        ) { enabled.getValue() }
         val screenshotDetection = switch(
             R.string.sync_clipboard_screenshot_detection,
             "sync_clipboard_screenshot_detection",

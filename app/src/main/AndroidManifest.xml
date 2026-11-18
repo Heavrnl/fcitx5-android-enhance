@@ -16,6 +16,12 @@
 
     <!-- SyncClipboard needs network access -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Screenshot detection requires media access -->
@@ -191,6 +197,27 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- 剪贴板同步可选静默前台保活服务（仅亮屏时保活，息屏自动休眠） -->
+        <service
+            android:name=".data.syncclipboard.SyncClipboardService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Real-time cross-device clipboard synchronization while screen is interactive" />
+        </service>
+
+        <!-- 开机解锁或应用更新后按需恢复剪贴板同步 -->
+        <receiver
+            android:name=".data.syncclipboard.SyncClipboardBootReceiver"
+            android:directBootAware="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name=".provider.FcitxDataProvider"
